@@ -395,16 +395,16 @@ pub fn decode(buf: &[u8]) -> Result<(usize, CommandReply), Error> {
         return Err(Error::InvalidFrame);
     }
     let payload = &unpacker.buf[(frame_start as usize)..unpacker.pos];
-    let checksum = unpacker.unpack_u16()?;
-    let actual = CRC16.checksum(payload);
-    if CRC16.checksum(payload) != checksum {
-        return Err(Error::ChecksumMismatch {
-            expected: checksum,
-            actual,
-        });
-    }
+    let checksum_expected = unpacker.unpack_u16()?;
     if unpacker.unpack_u8()? != FRAME_END {
         return Err(Error::InvalidFrame);
+    }
+    let checksum_actual = CRC16.checksum(payload);
+    if checksum_actual != checksum_expected {
+        return Err(Error::ChecksumMismatch {
+            expected: checksum_expected,
+            actual: checksum_actual,
+        });
     }
     Ok((unpacker.pos, reply))
 }

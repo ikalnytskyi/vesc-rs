@@ -267,3 +267,14 @@ fn decode_wrong_payload_len_lt_payload() {
     let expected = &Error::InvalidFrame;
     assert_that!(vesc::decode(&input), err(eq(expected)));
 }
+
+#[test]
+fn decode_invalid_frame_end_witch_checksum_mismatch() {
+    let input = [
+        2, 23, 50, 0, 2, 161, 138, 0, 0, 0, 0, 0, 10, 255, 255, 246, 213, 1, 118, 255, 255, 181,
+        218, 0, 21, 94, 130, 2,
+    ];
+
+    let expected = &Error::InvalidFrame;
+    assert_that!(vesc::decode(&input), err(eq(expected)));
+}
