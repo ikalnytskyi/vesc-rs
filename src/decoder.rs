@@ -11,6 +11,8 @@ use crate::{CommandReply, Error};
 /// the [`Iterator`] interface.
 ///
 /// [`feed`]: Self::feed
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Decoder<const BUFLEN: usize = 512> {
     buf: [u8; BUFLEN],
     wpos: usize,
