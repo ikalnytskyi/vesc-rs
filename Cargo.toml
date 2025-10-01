@@ -1,6 +1,6 @@
 [package]
 name = "vesc"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Ihor Kalnytskyi <ihor@kalnytskyi.com>"]
 edition = "2024"
 description = "A no-std/no-alloc implementation of the VESC® firmware communication protocol."
