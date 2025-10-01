@@ -243,3 +243,27 @@ fn decode_invalid_frame_end() {
     let expected = &Error::InvalidFrame;
     assert_that!(vesc::decode(&input), err(eq(expected)));
 }
+
+#[test]
+fn decode_wrong_payload_len_gt_payload() {
+    let mut input = [
+        2, 23, 50, 0, 2, 161, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 128, 255, 255, 158, 70, 0, 1,
+        63, 148, 3,
+    ];
+    input[1] = input[1] + 1;
+
+    let expected = &Error::InvalidFrame;
+    assert_that!(vesc::decode(&input), err(eq(expected)));
+}
+
+#[test]
+fn decode_wrong_payload_len_lt_payload() {
+    let mut input = [
+        2, 23, 50, 0, 2, 161, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 128, 255, 255, 158, 70, 0, 1,
+        63, 148, 3,
+    ];
+    input[1] = input[1] - 1;
+
+    let expected = &Error::InvalidFrame;
+    assert_that!(vesc::decode(&input), err(eq(expected)));
+}

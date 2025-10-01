@@ -380,12 +380,21 @@ pub fn encode(command: Command, buf: &mut [u8]) -> Result<usize, Error> {
 pub fn decode(buf: &[u8]) -> Result<(usize, CommandReply), Error> {
     let mut unpacker = Unpacker::new(buf);
 
-    if unpacker.unpack_u8()? != FRAME_START_SHORT {
+    let frame_start = unpacker.unpack_u8()?;
+    if frame_start != FRAME_START_SHORT {
         return Err(Error::InvalidFrame);
     }
     let payload_len = unpacker.unpack_u8()? as usize;
     let reply = CommandReply::unpack_from(&mut unpacker)?;
-    let payload = &unpacker.buf[unpacker.pos - payload_len..unpacker.pos];
+
+    // Knowing the payload length upfront isn't strictly necessary here, but it
+    // provides an extra validation step: we can confirm that the frame is
+    // well-formed and report an error if the declared length doesn't match the
+    // actual payload length.
+    if payload_len != unpacker.pos - (frame_start as usize) {
+        return Err(Error::InvalidFrame);
+    }
+    let payload = &unpacker.buf[(frame_start as usize)..unpacker.pos];
     let checksum = unpacker.unpack_u16()?;
     let actual = CRC16.checksum(payload);
     if CRC16.checksum(payload) != checksum {
