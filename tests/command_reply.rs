@@ -1,6 +1,6 @@
 use googletest::prelude::*;
 
-use vesc::{CommandReply, Error, Values};
+use vesc::{CommandReply, DecodeError, Values};
 
 #[test]
 fn decode_get_values_zero_rpm() {
@@ -196,7 +196,7 @@ fn decode_incomplete_data() {
         2, 23, 50, 0, 2, 161, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 128, 255, 255, 158, 70, 0, 1,
         63, 148, 3,
     ];
-    let expected = &Error::IncompleteData;
+    let expected = &DecodeError::IncompleteData;
 
     for i in 1..input.len() {
         assert_that!(vesc::decode(&input[..i]), err(eq(expected)));
@@ -210,7 +210,7 @@ fn decode_checksum_mismatch() {
         218, 0, 21, 94, 130, 3,
     ];
 
-    let expected = &Error::ChecksumMismatch {
+    let expected = &DecodeError::ChecksumMismatch {
         expected: 24194,
         actual: 20131,
     };
@@ -220,7 +220,7 @@ fn decode_checksum_mismatch() {
 #[test]
 fn decode_unknown_packet() {
     let input = [2, 3, 222, 4, 0, 178, 81, 3];
-    let expected = &Error::UnknownPacket { id: 222 };
+    let expected = &DecodeError::UnknownPacket { id: 222 };
     assert_that!(vesc::decode(&input), err(eq(expected)));
 }
 
@@ -230,7 +230,7 @@ fn decode_invalid_frame_start() {
         7, 23, 50, 0, 2, 161, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 128, 255, 255, 158, 70, 0, 1,
         63, 148, 3,
     ];
-    let expected = &Error::InvalidFrame;
+    let expected = &DecodeError::InvalidFrame;
     assert_that!(vesc::decode(&input), err(eq(expected)));
 }
 
@@ -240,7 +240,7 @@ fn decode_invalid_frame_end() {
         2, 23, 50, 0, 2, 161, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 128, 255, 255, 158, 70, 0, 1,
         63, 148, 2,
     ];
-    let expected = &Error::InvalidFrame;
+    let expected = &DecodeError::InvalidFrame;
     assert_that!(vesc::decode(&input), err(eq(expected)));
 }
 
@@ -252,7 +252,7 @@ fn decode_wrong_payload_len_gt_payload() {
     ];
     input[1] = input[1] + 1;
 
-    let expected = &Error::InvalidFrame;
+    let expected = &DecodeError::InvalidFrame;
     assert_that!(vesc::decode(&input), err(eq(expected)));
 }
 
@@ -264,7 +264,7 @@ fn decode_wrong_payload_len_lt_payload() {
     ];
     input[1] = input[1] - 1;
 
-    let expected = &Error::InvalidFrame;
+    let expected = &DecodeError::InvalidFrame;
     assert_that!(vesc::decode(&input), err(eq(expected)));
 }
 
@@ -275,6 +275,6 @@ fn decode_invalid_frame_end_witch_checksum_mismatch() {
         218, 0, 21, 94, 130, 2,
     ];
 
-    let expected = &Error::InvalidFrame;
+    let expected = &DecodeError::InvalidFrame;
     assert_that!(vesc::decode(&input), err(eq(expected)));
 }

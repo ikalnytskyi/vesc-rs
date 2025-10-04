@@ -6,14 +6,20 @@ const CRC16: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_XMODEM);
 const FRAME_END: u8 = 3;
 const FRAME_START_SHORT: u8 = 2;
 
-/// Errors that can occur during command encoding or decoding.
+/// Errors that can occur during command encoding.
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[non_exhaustive]
-pub enum Error {
+pub enum EncodeError {
     #[error("the output buffer provided for encoding is too small")]
     BufferTooSmall,
+}
 
+/// Errors that can occur during command reply decoding.
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[non_exhaustive]
+pub enum DecodeError {
     #[error("the input buffer for decoding does not contain enough data for a complete frame")]
     IncompleteData,
 
@@ -37,7 +43,7 @@ enum CommandId {
 }
 
 impl TryFrom<u8> for CommandId {
-    type Error = Error;
+    type Error = DecodeError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -46,7 +52,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::SetRpm as u8 => Ok(CommandId::SetRpm),
             id if id == CommandId::ForwardCan as u8 => Ok(CommandId::ForwardCan),
             id if id == CommandId::GetValuesSelective as u8 => Ok(CommandId::GetValuesSelective),
-            id => Err(Error::UnknownPacket { id }),
+            id => Err(DecodeError::UnknownPacket { id }),
         }
     }
 }
@@ -136,7 +142,7 @@ pub enum Command<'a> {
 }
 
 impl<'a> Command<'a> {
-    fn pack_into(&self, packer: &mut Packer) -> Result<(), Error> {
+    fn pack_into(&self, packer: &mut Packer) -> Result<(), EncodeError> {
         match self {
             Self::GetValues => {
                 packer.pack_u8(CommandId::GetValues as u8)?;
@@ -217,15 +223,15 @@ pub enum CommandReply {
 }
 
 impl CommandReply {
-    fn unpack_from(unpacker: &mut Unpacker) -> Result<Self, Error> {
+    fn unpack_from(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
         Ok(match unpacker.unpack_u8()?.try_into()? {
             CommandId::GetValues => Self::unpack_get_values(unpacker)?,
             CommandId::GetValuesSelective => Self::unpack_get_values_selective(unpacker)?,
-            id => return Err(Error::UnknownPacket { id: id as u8 }),
+            id => return Err(DecodeError::UnknownPacket { id: id as u8 }),
         })
     }
 
-    fn unpack_get_values(unpacker: &mut Unpacker) -> Result<Self, Error> {
+    fn unpack_get_values(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
         let values = Values {
             temp_mosfet: unpacker.unpack_f16(10.0)?,
             temp_motor: unpacker.unpack_f16(10.0)?,
@@ -255,7 +261,7 @@ impl CommandReply {
         Ok(CommandReply::GetValues(values))
     }
 
-    fn unpack_get_values_selective(unpacker: &mut Unpacker) -> Result<Self, Error> {
+    fn unpack_get_values_selective(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
         let mut values = Values::default();
         let mask = ValuesMask::from_bits_retain(unpacker.unpack_u32()?);
 
@@ -347,7 +353,7 @@ impl CommandReply {
 ///     _ => (),
 ///  }
 /// ```
-pub fn encode(command: Command, buf: &mut [u8]) -> Result<usize, Error> {
+pub fn encode(command: Command, buf: &mut [u8]) -> Result<usize, EncodeError> {
     let mut packer = Packer::new(buf);
     packer.pack_u8(FRAME_START_SHORT)?;
     packer.pack_u8(0)?;
@@ -377,12 +383,12 @@ pub fn encode(command: Command, buf: &mut [u8]) -> Result<usize, Error> {
 ///     _ => (),
 /// }
 /// ```
-pub fn decode(buf: &[u8]) -> Result<(usize, CommandReply), Error> {
+pub fn decode(buf: &[u8]) -> Result<(usize, CommandReply), DecodeError> {
     let mut unpacker = Unpacker::new(buf);
 
     let frame_start = unpacker.unpack_u8()?;
     if frame_start != FRAME_START_SHORT {
-        return Err(Error::InvalidFrame);
+        return Err(DecodeError::InvalidFrame);
     }
     let payload_len = unpacker.unpack_u8()? as usize;
     let reply = CommandReply::unpack_from(&mut unpacker)?;
@@ -392,16 +398,16 @@ pub fn decode(buf: &[u8]) -> Result<(usize, CommandReply), Error> {
     // well-formed and report an error if the declared length doesn't match the
     // actual payload length.
     if payload_len != unpacker.pos - (frame_start as usize) {
-        return Err(Error::InvalidFrame);
+        return Err(DecodeError::InvalidFrame);
     }
     let payload = &unpacker.buf[(frame_start as usize)..unpacker.pos];
     let checksum_expected = unpacker.unpack_u16()?;
     if unpacker.unpack_u8()? != FRAME_END {
-        return Err(Error::InvalidFrame);
+        return Err(DecodeError::InvalidFrame);
     }
     let checksum_actual = CRC16.checksum(payload);
     if checksum_actual != checksum_expected {
-        return Err(Error::ChecksumMismatch {
+        return Err(DecodeError::ChecksumMismatch {
             expected: checksum_expected,
             actual: checksum_actual,
         });

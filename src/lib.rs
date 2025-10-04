@@ -34,5 +34,7 @@ mod command;
 mod decoder;
 mod packer;
 
-pub use command::{Command, CommandReply, Error, Values, ValuesMask, decode, encode};
+pub use command::{
+    Command, CommandReply, DecodeError, EncodeError, Values, ValuesMask, decode, encode,
+};
 pub use decoder::Decoder;
