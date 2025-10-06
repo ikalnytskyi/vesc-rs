@@ -1,4 +1,4 @@
-use crate::{CommandReply, Error};
+use crate::{CommandReply, DecodeError};
 
 /// A streaming decoder for VESC communication protocol.
 ///
@@ -43,7 +43,7 @@ impl<const BUFLEN: usize> Decoder<BUFLEN> {
     ///
     /// The decoder automatically manages buffer space by compacting processed
     /// data and will reset if a single frame exceeds buffer capacity.
-    pub fn feed(&mut self, data: &[u8]) -> Result<usize, Error> {
+    pub fn feed(&mut self, data: &[u8]) -> Result<usize, DecodeError> {
         if data.len() > self.buf.len().saturating_sub(self.wpos) {
             self.buf.copy_within(self.rpos..self.wpos, 0);
             self.wpos = self.wpos.saturating_sub(self.rpos);
@@ -82,7 +82,7 @@ impl<const BUFLEN: usize> core::iter::Iterator for Decoder<BUFLEN> {
                     self.rpos += consumed;
                     return Some(reply);
                 }
-                Err(Error::IncompleteData) => return None,
+                Err(DecodeError::IncompleteData) => return None,
                 _ => (),
             }
             self.rpos += 1;

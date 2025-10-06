@@ -1,6 +1,6 @@
 use googletest::prelude::*;
 
-use vesc::{self, Command, Error, ValuesMask};
+use vesc::{self, Command, EncodeError, ValuesMask};
 
 #[test]
 fn encode_get_values() {
@@ -98,6 +98,6 @@ fn encode_buffer_too_small() {
     for n in 0..10 {
         let mut buf = vec![0u8; n];
         let result = vesc::encode(Command::SetRpm(0), &mut buf);
-        assert_that!(result, err(eq(&Error::BufferTooSmall)));
+        assert_that!(result, err(eq(&EncodeError::BufferTooSmall)));
     }
 }
