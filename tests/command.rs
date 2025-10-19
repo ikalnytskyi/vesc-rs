@@ -51,6 +51,26 @@ fn encode_set_rpm() {
 }
 
 #[test]
+fn encode_set_handbrake() {
+    let mut buf = [0u8; 16];
+
+    let size = vesc::encode(Command::SetHandbrake(0.0), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 10, 0, 0, 0, 0, 70, 174, 3]));
+
+    let size = vesc::encode(Command::SetHandbrake(1.0), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 10, 0, 0, 3, 232, 111, 219, 3]));
+
+    let size = vesc::encode(Command::SetHandbrake(5.2), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 10, 0, 0, 20, 80, 211, 236, 3]));
+
+    let size = vesc::encode(Command::SetHandbrake(-1.0), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 10, 255, 255, 252, 24, 7, 251, 3]));
+
+    let size = vesc::encode(Command::SetHandbrake(-5.2), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 10, 255, 255, 235, 176, 169, 253, 3]));
+}
+
+#[test]
 fn encode_forward_can() {
     let mut buf = [0u8; 16];
 
