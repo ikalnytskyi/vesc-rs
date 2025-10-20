@@ -18,6 +18,7 @@ application that needs to communicate with VESC motor controllers.
 | `GetValues`                       | ✅     |
 | `SetCurrent`                      | ✅     |
 | `SetRpm`                          | ✅     |
+| `SetHandbrake`                    | ✅     |
 | `ForwardCan`                      | ✅     |
 | `GetValuesSelective`              | ✅     |
 
