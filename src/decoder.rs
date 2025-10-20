@@ -19,7 +19,7 @@ pub struct Decoder<const BUFLEN: usize = 512> {
     rpos: usize,
 }
 
-impl<const BUFLEN: usize> Default for Decoder<BUFLEN> {
+impl Default for Decoder<512> {
     fn default() -> Self {
         Self::new()
     }
