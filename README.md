@@ -27,6 +27,7 @@ application that needs to communicate with VESC motor controllers.
 | `30`       | `Alive`                           | ✅     |
 | `34`       | `ForwardCan`                      | ✅     |
 | `50`       | `GetValuesSelective`              | ✅     |
+| `110`      | `SetOdometer`                     | ✅     |
 
 ## Supported command replies
 

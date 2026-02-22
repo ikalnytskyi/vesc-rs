@@ -189,6 +189,23 @@ fn encode_get_values_selective() {
 }
 
 #[test]
+fn encode_set_odometer() {
+    let mut buf = [0u8; 16];
+
+    let size = vesc::encode(Command::SetOdometer(0), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 110, 0, 0, 0, 0, 214, 116, 3]));
+
+    let size = vesc::encode(Command::SetOdometer(1), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 110, 0, 0, 0, 1, 198, 85, 3]));
+
+    let size = vesc::encode(Command::SetOdometer(123456), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 110, 0, 1, 226, 64, 223, 80, 3]));
+
+    let size = vesc::encode(Command::SetOdometer(u32::MAX), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 110, 255, 255, 255, 255, 79, 187, 3]));
+}
+
+#[test]
 fn encode_buf_perfect_fit() {
     let mut buf = [0u8; 10];
 

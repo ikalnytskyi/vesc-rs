@@ -53,6 +53,7 @@ enum CommandId {
     Alive = 30,
     ForwardCan = 34,
     GetValuesSelective = 50,
+    SetOdometer = 110,
 }
 
 impl TryFrom<u8> for CommandId {
@@ -72,6 +73,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::Alive as u8 => Ok(CommandId::Alive),
             id if id == CommandId::ForwardCan as u8 => Ok(CommandId::ForwardCan),
             id if id == CommandId::GetValuesSelective as u8 => Ok(CommandId::GetValuesSelective),
+            id if id == CommandId::SetOdometer as u8 => Ok(CommandId::SetOdometer),
             id => Err(DecodeError::UnknownPacket { id }),
         }
     }
@@ -181,6 +183,9 @@ pub enum Command<'a> {
     /// compared to [`GetValues`], making it more efficient when only selected
     /// data fields are needed.
     GetValuesSelective(ValuesMask),
+
+    /// Sets the odometer value.
+    SetOdometer(u32),
 }
 
 impl<'a> Command<'a> {
@@ -230,6 +235,10 @@ impl<'a> Command<'a> {
             Self::GetValuesSelective(mask) => {
                 packer.pack_u8(CommandId::GetValuesSelective as u8)?;
                 packer.pack_u32(mask.bits())?;
+            }
+            Self::SetOdometer(odometer) => {
+                packer.pack_u8(CommandId::SetOdometer as u8)?;
+                packer.pack_u32(*odometer)?;
             }
         }
         Ok(())
