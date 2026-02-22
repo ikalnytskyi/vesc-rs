@@ -242,6 +242,20 @@ fn encode_reset_stats() {
 }
 
 #[test]
+fn encode_shutdown() {
+    let mut buf = [0u8; 16];
+
+    let size = vesc::encode(Command::Shutdown(false, false), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 3, 156, 0, 0, 13, 88, 3]));
+
+    let size = vesc::encode(Command::Shutdown(true, false), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 3, 156, 1, 0, 62, 105, 3]));
+
+    let size = vesc::encode(Command::Shutdown(true, true), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 3, 156, 1, 1, 46, 72, 3]));
+}
+
+#[test]
 fn encode_motor_estop() {
     let mut buf = [0u8; 16];
 

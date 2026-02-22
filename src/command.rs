@@ -57,6 +57,7 @@ enum CommandId {
     SetOdometer = 110,
     GetStats = 128,
     ResetStats = 129,
+    Shutdown = 156,
     FwInfo = 157,
     MotorEstop = 159,
 }
@@ -81,6 +82,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::SetOdometer as u8 => Ok(CommandId::SetOdometer),
             id if id == CommandId::GetStats as u8 => Ok(CommandId::GetStats),
             id if id == CommandId::ResetStats as u8 => Ok(CommandId::ResetStats),
+            id if id == CommandId::Shutdown as u8 => Ok(CommandId::Shutdown),
             id if id == CommandId::FwInfo as u8 => Ok(CommandId::FwInfo),
             id if id == CommandId::MotorEstop as u8 => Ok(CommandId::MotorEstop),
             id => Err(DecodeError::UnknownPacket { id }),
@@ -224,6 +226,9 @@ pub enum Command<'a> {
     /// Resets runtime statistics. Set `ack` to `true` to request an ack reply.
     ResetStats(bool),
 
+    /// Requests controller shutdown or restart.
+    Shutdown(bool, bool),
+
     /// Requests firmware build information from the VESC.
     FwInfo,
 
@@ -290,6 +295,11 @@ impl<'a> Command<'a> {
             Self::ResetStats(ack) => {
                 packer.pack_u8(CommandId::ResetStats as u8)?;
                 packer.pack_u8(*ack as u8)?;
+            }
+            Self::Shutdown(force, restart) => {
+                packer.pack_u8(CommandId::Shutdown as u8)?;
+                packer.pack_u8(*force as u8)?;
+                packer.pack_u8(*restart as u8)?;
             }
             Self::FwInfo => {
                 packer.pack_u8(CommandId::FwInfo as u8)?;

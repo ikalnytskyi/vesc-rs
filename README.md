@@ -30,6 +30,7 @@ application that needs to communicate with VESC motor controllers.
 | `110`      | `SetOdometer`                     | ✅     |
 | `128`      | `GetStats`                        | ✅     |
 | `129`      | `ResetStats`                      | ✅     |
+| `156`      | `Shutdown`                        | ✅     |
 | `157`      | `FwInfo`                          | ✅     |
 | `159`      | `MotorEstop`                      | ✅     |
 
