@@ -49,6 +49,7 @@ enum CommandId {
     SetRpm = 8,
     SetPos = 9,
     SetHandbrake = 10,
+    Reboot = 29,
     Alive = 30,
     ForwardCan = 34,
     GetValuesSelective = 50,
@@ -67,6 +68,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::SetRpm as u8 => Ok(CommandId::SetRpm),
             id if id == CommandId::SetPos as u8 => Ok(CommandId::SetPos),
             id if id == CommandId::SetHandbrake as u8 => Ok(CommandId::SetHandbrake),
+            id if id == CommandId::Reboot as u8 => Ok(CommandId::Reboot),
             id if id == CommandId::Alive as u8 => Ok(CommandId::Alive),
             id if id == CommandId::ForwardCan as u8 => Ok(CommandId::ForwardCan),
             id if id == CommandId::GetValuesSelective as u8 => Ok(CommandId::GetValuesSelective),
@@ -161,6 +163,9 @@ pub enum Command<'a> {
     /// Sets the handbrake current in amperes.
     SetHandbrake(f32),
 
+    /// Reboots the VESC controller.
+    Reboot,
+
     /// Keeps the VESC connection alive and resets command timeout.
     Alive,
 
@@ -210,6 +215,9 @@ impl<'a> Command<'a> {
             Self::SetHandbrake(current) => {
                 packer.pack_u8(CommandId::SetHandbrake as u8)?;
                 packer.pack_f32(*current, 1000.0)?;
+            }
+            Self::Reboot => {
+                packer.pack_u8(CommandId::Reboot as u8)?;
             }
             Self::Alive => {
                 packer.pack_u8(CommandId::Alive as u8)?;

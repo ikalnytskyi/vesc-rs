@@ -147,6 +147,14 @@ fn encode_alive() {
 }
 
 #[test]
+fn encode_reboot() {
+    let mut buf = [0u8; 16];
+
+    let size = vesc::encode(Command::Reboot, &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 1, 29, 195, 156, 3]));
+}
+
+#[test]
 fn encode_forward_can() {
     let mut buf = [0u8; 16];
 
