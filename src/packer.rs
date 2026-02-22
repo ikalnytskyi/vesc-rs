@@ -105,6 +105,24 @@ impl<'a> Unpacker<'a> {
     }
 
     #[inline]
+    pub fn unpack_c_string<const N: usize>(&mut self) -> Result<[u8; N], DecodeError> {
+        let mut buf = [0u8; N];
+        for slot in buf.iter_mut() {
+            *slot = self.unpack_u8()?;
+            if *slot == 0 {
+                return Ok(buf);
+            }
+        }
+        Err(DecodeError::InvalidFrame)
+    }
+
+    #[inline]
+    pub fn unpack_uuid(&mut self) -> Result<[u8; 12], DecodeError> {
+        // SAFETY: `consume(12)` returns a slice with exactly 12 bytes.
+        Ok(self.consume(12)?.try_into().unwrap())
+    }
+
+    #[inline]
     fn consume(&mut self, amount: usize) -> Result<&[u8], DecodeError> {
         if self.pos + amount > self.buf.len() {
             return Err(DecodeError::IncompleteData);

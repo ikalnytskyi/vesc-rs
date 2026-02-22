@@ -15,6 +15,7 @@ application that needs to communicate with VESC motor controllers.
 
 | Command ID | Command Name                      | Status |
 |:----------:|-----------------------------------|--------|
+| `0`        | `FwVersion`                       | ✅     |
 | `4`        | `GetValues`                       | ✅     |
 | `6`        | `SetCurrent`                      | ✅     |
 | `7`        | `SetCurrentBrake`                 | ✅     |
@@ -32,6 +33,7 @@ application that needs to communicate with VESC motor controllers.
 
 | Command ID | Command Name                      | Status |
 |------------|-----------------------------------|--------|
+| `0`        | `FwVersion`                       | ✅     |
 | `4`        | `GetValues`                       | ✅     |
 | `50`       | `GetValuesSelective`              | ✅     |
 

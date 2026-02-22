@@ -1,10 +1,16 @@
 use bitflags::bitflags;
+use core::ffi::CStr;
 
 use super::packer::{Packer, Unpacker};
 
 const CRC16: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_XMODEM);
 const FRAME_END: u8 = 3;
 const FRAME_START_SHORT: u8 = 2;
+
+// The VESC firmware caps the FwVersion payload at 65 bytes.
+// This decoder allows each name buffer to hold up to 39 bytes (including NUL).
+// The two names still share the same 65-byte payload budget with fixed fields.
+const FW_VERSION_NAME_MAX_LEN: usize = 39;
 
 /// Errors that can occur during command encoding.
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
@@ -35,6 +41,7 @@ pub enum DecodeError {
 
 #[repr(u8)]
 enum CommandId {
+    FwVersion = 0,
     GetValues = 4,
     SetCurrent = 6,
     SetCurrentBrake = 7,
@@ -49,6 +56,7 @@ impl TryFrom<u8> for CommandId {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
+            id if id == CommandId::FwVersion as u8 => Ok(CommandId::FwVersion),
             id if id == CommandId::GetValues as u8 => Ok(CommandId::GetValues),
             id if id == CommandId::SetCurrent as u8 => Ok(CommandId::SetCurrent),
             id if id == CommandId::SetCurrentBrake as u8 => Ok(CommandId::SetCurrentBrake),
@@ -120,6 +128,9 @@ bitflags! {
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Command<'a> {
+    /// Requests firmware version information from the VESC.
+    FwVersion,
+
     /// Requests the complete set of telemetry data from the VESC.
     GetValues,
 
@@ -155,6 +166,9 @@ pub enum Command<'a> {
 impl<'a> Command<'a> {
     fn pack_into(&self, packer: &mut Packer) -> Result<(), EncodeError> {
         match self {
+            Self::FwVersion => {
+                packer.pack_u8(CommandId::FwVersion as u8)?;
+            }
             Self::GetValues => {
                 packer.pack_u8(CommandId::GetValues as u8)?;
             }
@@ -310,6 +324,102 @@ impl From<u8> for FaultCode {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u8)]
+pub enum HwType {
+    Vesc = 0,
+    VescBms = 1,
+    CustomModule = 2,
+    Unknown = 255,
+}
+
+impl From<u8> for HwType {
+    fn from(value: u8) -> Self {
+        match value {
+            v if v == HwType::Vesc as u8 => HwType::Vesc,
+            v if v == HwType::VescBms as u8 => HwType::VescBms,
+            v if v == HwType::CustomModule as u8 => HwType::CustomModule,
+            _ => HwType::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[repr(u8)]
+pub enum QmlHw {
+    None = 0,
+    Embedded = 1,
+    Fullscreen = 2,
+    Unknown = 255,
+}
+
+impl From<u8> for QmlHw {
+    fn from(value: u8) -> Self {
+        match value {
+            v if v == QmlHw::None as u8 => QmlHw::None,
+            v if v == QmlHw::Embedded as u8 => QmlHw::Embedded,
+            v if v == QmlHw::Fullscreen as u8 => QmlHw::Fullscreen,
+            _ => QmlHw::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct QmlAppFlags(u8);
+
+bitflags! {
+    impl QmlAppFlags: u8 {
+        const EMBEDDED = 1 << 0;
+        const FULLSCREEN = 1 << 1;
+        const _ = !0;
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct NrfFlags(u8);
+
+bitflags! {
+    impl NrfFlags: u8 {
+        const _ = !0;
+    }
+}
+
+/// Firmware version data returned by the motor controller.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct FwVersion {
+    pub major: u8,
+    pub minor: u8,
+    pub hw_name: [u8; FW_VERSION_NAME_MAX_LEN],
+    pub uuid: [u8; 12],
+    pub pairing_done: bool,
+    pub test_version_number: u8,
+    pub hw_type: HwType,
+    pub custom_config_num: u8,
+    pub has_phase_filters: bool,
+    pub qml_hw: QmlHw,
+    pub qml_app: QmlAppFlags,
+    pub nrf_flags: NrfFlags,
+    pub fw_name: [u8; FW_VERSION_NAME_MAX_LEN],
+    pub hw_crc: u32,
+}
+
+impl FwVersion {
+    pub fn hw_name(&self) -> Option<&str> {
+        let cstr = CStr::from_bytes_until_nul(&self.hw_name).ok()?;
+        cstr.to_str().ok()
+    }
+
+    pub fn fw_name(&self) -> Option<&str> {
+        let cstr = CStr::from_bytes_until_nul(&self.fw_name).ok()?;
+        cstr.to_str().ok()
+    }
+}
+
 /// Telemetry data returned by the motor controller.
 ///
 /// Contains temperatures, currents, voltages, rpm, and so on. Returned by
@@ -353,6 +463,9 @@ pub struct Values {
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum CommandReply {
+    /// Firmware version in response to [`Command::FwVersion`].
+    FwVersion(FwVersion),
+
     /// Complete telemetry data in response to [`Command::GetValues`]. Contains
     /// all available sensor readings and status information.
     GetValues(Values),
@@ -366,10 +479,31 @@ pub enum CommandReply {
 impl CommandReply {
     fn unpack_from(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
         Ok(match unpacker.unpack_u8()?.try_into()? {
+            CommandId::FwVersion => Self::unpack_fw_version(unpacker)?,
             CommandId::GetValues => Self::unpack_get_values(unpacker)?,
             CommandId::GetValuesSelective => Self::unpack_get_values_selective(unpacker)?,
             id => return Err(DecodeError::UnknownPacket { id: id as u8 }),
         })
+    }
+
+    fn unpack_fw_version(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
+        let fw_version = FwVersion {
+            major: unpacker.unpack_u8()?,
+            minor: unpacker.unpack_u8()?,
+            hw_name: unpacker.unpack_c_string::<FW_VERSION_NAME_MAX_LEN>()?,
+            uuid: unpacker.unpack_uuid()?,
+            pairing_done: unpacker.unpack_u8()? != 0,
+            test_version_number: unpacker.unpack_u8()?,
+            hw_type: unpacker.unpack_u8()?.into(),
+            custom_config_num: unpacker.unpack_u8()?,
+            has_phase_filters: unpacker.unpack_u8()? != 0,
+            qml_hw: unpacker.unpack_u8()?.into(),
+            qml_app: QmlAppFlags::from_bits_retain(unpacker.unpack_u8()?),
+            nrf_flags: NrfFlags::from_bits_retain(unpacker.unpack_u8()?),
+            fw_name: unpacker.unpack_c_string::<FW_VERSION_NAME_MAX_LEN>()?,
+            hw_crc: unpacker.unpack_u32()?,
+        };
+        Ok(CommandReply::FwVersion(fw_version))
     }
 
     fn unpack_get_values(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
