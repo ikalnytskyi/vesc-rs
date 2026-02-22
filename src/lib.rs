@@ -60,6 +60,7 @@ pub use command::{
     DecodeError,
     EncodeError,
     FaultCode,
+    FwInfo,
     FwVersion,
     HwType,
     NrfFlags,

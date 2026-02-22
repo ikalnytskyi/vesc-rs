@@ -50,6 +50,32 @@ fn decode_fw_version_full_reply() {
 }
 
 #[test]
+fn decode_fw_info() {
+    let input = [
+        2, 20, 157, 7, 1, 2, 97, 98, 99, 49, 50, 51, 0, 117, 115, 101, 114, 104, 97, 115, 104, 0,
+        38, 208, 3,
+    ];
+
+    let expected = (
+        eq(&25),
+        pat!(&CommandReply::FwInfo(pat!(vesc::FwInfo {
+            major: eq(7),
+            minor: eq(1),
+            test_version_number: eq(2),
+            ..
+        }))),
+    );
+    assert_that!(vesc::decode(&input), ok(expected));
+
+    let (_, reply) = vesc::decode(&input).unwrap();
+    let CommandReply::FwInfo(info) = reply else {
+        panic!("expected fw info reply");
+    };
+    assert_that!(info.commit_hash(), some(eq("abc123")));
+    assert_that!(info.user_commit_hash(), some(eq("userhash")));
+}
+
+#[test]
 fn decode_get_values_zero_rpm() {
     let input = [
         2, 74, 4, 1, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,

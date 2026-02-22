@@ -11,6 +11,14 @@ fn encode_fw_version() {
 }
 
 #[test]
+fn encode_fw_info() {
+    let mut buf = [0u8; 16];
+
+    let size = vesc::encode(Command::FwInfo, &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 1, 157, 82, 20, 3]));
+}
+
+#[test]
 fn encode_get_values() {
     let mut buf = [0u8; 16];
 

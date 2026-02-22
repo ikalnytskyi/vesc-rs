@@ -11,6 +11,7 @@ const FRAME_START_SHORT: u8 = 2;
 // This decoder allows each name buffer to hold up to 39 bytes (including NUL).
 // The two names still share the same 65-byte payload budget with fixed fields.
 const FW_VERSION_NAME_MAX_LEN: usize = 39;
+const FW_INFO_COMMIT_HASH_MAX_LEN: usize = 47;
 
 /// Errors that can occur during command encoding.
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
@@ -56,6 +57,7 @@ enum CommandId {
     SetOdometer = 110,
     GetStats = 128,
     ResetStats = 129,
+    FwInfo = 157,
     MotorEstop = 159,
 }
 
@@ -79,6 +81,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::SetOdometer as u8 => Ok(CommandId::SetOdometer),
             id if id == CommandId::GetStats as u8 => Ok(CommandId::GetStats),
             id if id == CommandId::ResetStats as u8 => Ok(CommandId::ResetStats),
+            id if id == CommandId::FwInfo as u8 => Ok(CommandId::FwInfo),
             id if id == CommandId::MotorEstop as u8 => Ok(CommandId::MotorEstop),
             id => Err(DecodeError::UnknownPacket { id }),
         }
@@ -221,6 +224,9 @@ pub enum Command<'a> {
     /// Resets runtime statistics. Set `ack` to `true` to request an ack reply.
     ResetStats(bool),
 
+    /// Requests firmware build information from the VESC.
+    FwInfo,
+
     /// Triggers emergency stop and ignores input for the given time period.
     MotorEstop(u16),
 }
@@ -284,6 +290,9 @@ impl<'a> Command<'a> {
             Self::ResetStats(ack) => {
                 packer.pack_u8(CommandId::ResetStats as u8)?;
                 packer.pack_u8(*ack as u8)?;
+            }
+            Self::FwInfo => {
+                packer.pack_u8(CommandId::FwInfo as u8)?;
             }
             Self::MotorEstop(ignore_time_ms) => {
                 packer.pack_u8(CommandId::MotorEstop as u8)?;
@@ -512,6 +521,29 @@ impl FwVersion {
     }
 }
 
+/// Firmware build information returned by the motor controller.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct FwInfo {
+    pub major: u8,
+    pub minor: u8,
+    pub test_version_number: u8,
+    pub commit_hash: [u8; FW_INFO_COMMIT_HASH_MAX_LEN],
+    pub user_commit_hash: [u8; FW_INFO_COMMIT_HASH_MAX_LEN],
+}
+
+impl FwInfo {
+    pub fn commit_hash(&self) -> Option<&str> {
+        let cstr = CStr::from_bytes_until_nul(&self.commit_hash).ok()?;
+        cstr.to_str().ok()
+    }
+
+    pub fn user_commit_hash(&self) -> Option<&str> {
+        let cstr = CStr::from_bytes_until_nul(&self.user_commit_hash).ok()?;
+        cstr.to_str().ok()
+    }
+}
+
 /// Telemetry data returned by the motor controller.
 ///
 /// Contains temperatures, currents, voltages, rpm, and so on. Returned by
@@ -589,6 +621,9 @@ pub enum CommandReply {
 
     /// Acknowledgement in response to [`Command::ResetStats`] with `ack=true`.
     ResetStats,
+
+    /// Firmware build information in response to [`Command::FwInfo`].
+    FwInfo(FwInfo),
 }
 
 impl CommandReply {
@@ -599,6 +634,7 @@ impl CommandReply {
             CommandId::GetValuesSelective => Self::unpack_get_values_selective(unpacker)?,
             CommandId::GetStats => Self::unpack_get_stats(unpacker)?,
             CommandId::ResetStats => Self::unpack_reset_stats(),
+            CommandId::FwInfo => Self::unpack_fw_info(unpacker)?,
             id => return Err(DecodeError::UnknownPacket { id: id as u8 }),
         })
     }
@@ -770,6 +806,17 @@ impl CommandReply {
 
     fn unpack_reset_stats() -> Self {
         CommandReply::ResetStats
+    }
+
+    fn unpack_fw_info(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
+        let fw_info = FwInfo {
+            major: unpacker.unpack_u8()?,
+            minor: unpacker.unpack_u8()?,
+            test_version_number: unpacker.unpack_u8()?,
+            commit_hash: unpacker.unpack_c_string::<FW_INFO_COMMIT_HASH_MAX_LEN>()?,
+            user_commit_hash: unpacker.unpack_c_string::<FW_INFO_COMMIT_HASH_MAX_LEN>()?,
+        };
+        Ok(CommandReply::FwInfo(fw_info))
     }
 }
 
