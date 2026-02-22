@@ -47,6 +47,7 @@ enum CommandId {
     SetCurrent = 6,
     SetCurrentBrake = 7,
     SetRpm = 8,
+    SetPos = 9,
     SetHandbrake = 10,
     ForwardCan = 34,
     GetValuesSelective = 50,
@@ -63,6 +64,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::SetCurrent as u8 => Ok(CommandId::SetCurrent),
             id if id == CommandId::SetCurrentBrake as u8 => Ok(CommandId::SetCurrentBrake),
             id if id == CommandId::SetRpm as u8 => Ok(CommandId::SetRpm),
+            id if id == CommandId::SetPos as u8 => Ok(CommandId::SetPos),
             id if id == CommandId::SetHandbrake as u8 => Ok(CommandId::SetHandbrake),
             id if id == CommandId::ForwardCan as u8 => Ok(CommandId::ForwardCan),
             id if id == CommandId::GetValuesSelective as u8 => Ok(CommandId::GetValuesSelective),
@@ -151,6 +153,9 @@ pub enum Command<'a> {
     /// drive forward; negative values drive reverse.
     SetRpm(i32),
 
+    /// Sets the motor position.
+    SetPos(f32),
+
     /// Sets the handbrake current in amperes.
     SetHandbrake(f32),
 
@@ -192,6 +197,10 @@ impl<'a> Command<'a> {
             Self::SetRpm(rpm) => {
                 packer.pack_u8(CommandId::SetRpm as u8)?;
                 packer.pack_i32(*rpm)?;
+            }
+            Self::SetPos(pos) => {
+                packer.pack_u8(CommandId::SetPos as u8)?;
+                packer.pack_f32(*pos, 1000000.0)?;
             }
             Self::SetHandbrake(current) => {
                 packer.pack_u8(CommandId::SetHandbrake as u8)?;
