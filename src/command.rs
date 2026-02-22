@@ -49,6 +49,7 @@ enum CommandId {
     SetRpm = 8,
     SetPos = 9,
     SetHandbrake = 10,
+    Alive = 30,
     ForwardCan = 34,
     GetValuesSelective = 50,
 }
@@ -66,6 +67,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::SetRpm as u8 => Ok(CommandId::SetRpm),
             id if id == CommandId::SetPos as u8 => Ok(CommandId::SetPos),
             id if id == CommandId::SetHandbrake as u8 => Ok(CommandId::SetHandbrake),
+            id if id == CommandId::Alive as u8 => Ok(CommandId::Alive),
             id if id == CommandId::ForwardCan as u8 => Ok(CommandId::ForwardCan),
             id if id == CommandId::GetValuesSelective as u8 => Ok(CommandId::GetValuesSelective),
             id => Err(DecodeError::UnknownPacket { id }),
@@ -159,6 +161,9 @@ pub enum Command<'a> {
     /// Sets the handbrake current in amperes.
     SetHandbrake(f32),
 
+    /// Keeps the VESC connection alive and resets command timeout.
+    Alive,
+
     /// Forwards a command to another VESC controller on the CAN bus. Takes the
     /// target controller ID and the command to forward.
     ForwardCan(
@@ -205,6 +210,9 @@ impl<'a> Command<'a> {
             Self::SetHandbrake(current) => {
                 packer.pack_u8(CommandId::SetHandbrake as u8)?;
                 packer.pack_f32(*current, 1000.0)?;
+            }
+            Self::Alive => {
+                packer.pack_u8(CommandId::Alive as u8)?;
             }
             Self::ForwardCan(controller_id, command) => {
                 packer.pack_u8(CommandId::ForwardCan as u8)?;

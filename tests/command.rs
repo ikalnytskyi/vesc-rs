@@ -139,6 +139,14 @@ fn encode_set_handbrake() {
 }
 
 #[test]
+fn encode_alive() {
+    let mut buf = [0u8; 16];
+
+    let size = vesc::encode(Command::Alive, &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 1, 30, 243, 255, 3]));
+}
+
+#[test]
 fn encode_forward_can() {
     let mut buf = [0u8; 16];
 
