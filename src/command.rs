@@ -56,6 +56,7 @@ enum CommandId {
     SetOdometer = 110,
     GetStats = 128,
     ResetStats = 129,
+    MotorEstop = 159,
 }
 
 impl TryFrom<u8> for CommandId {
@@ -78,6 +79,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::SetOdometer as u8 => Ok(CommandId::SetOdometer),
             id if id == CommandId::GetStats as u8 => Ok(CommandId::GetStats),
             id if id == CommandId::ResetStats as u8 => Ok(CommandId::ResetStats),
+            id if id == CommandId::MotorEstop as u8 => Ok(CommandId::MotorEstop),
             id => Err(DecodeError::UnknownPacket { id }),
         }
     }
@@ -218,6 +220,9 @@ pub enum Command<'a> {
 
     /// Resets runtime statistics. Set `ack` to `true` to request an ack reply.
     ResetStats(bool),
+
+    /// Triggers emergency stop and ignores input for the given time period.
+    MotorEstop(u16),
 }
 
 impl<'a> Command<'a> {
@@ -279,6 +284,10 @@ impl<'a> Command<'a> {
             Self::ResetStats(ack) => {
                 packer.pack_u8(CommandId::ResetStats as u8)?;
                 packer.pack_u8(*ack as u8)?;
+            }
+            Self::MotorEstop(ignore_time_ms) => {
+                packer.pack_u8(CommandId::MotorEstop as u8)?;
+                packer.pack_u16(*ignore_time_ms)?;
             }
         }
         Ok(())
