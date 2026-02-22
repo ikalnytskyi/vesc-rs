@@ -55,6 +55,7 @@ enum CommandId {
     GetValuesSelective = 50,
     SetOdometer = 110,
     GetStats = 128,
+    ResetStats = 129,
 }
 
 impl TryFrom<u8> for CommandId {
@@ -76,6 +77,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::GetValuesSelective as u8 => Ok(CommandId::GetValuesSelective),
             id if id == CommandId::SetOdometer as u8 => Ok(CommandId::SetOdometer),
             id if id == CommandId::GetStats as u8 => Ok(CommandId::GetStats),
+            id if id == CommandId::ResetStats as u8 => Ok(CommandId::ResetStats),
             id => Err(DecodeError::UnknownPacket { id }),
         }
     }
@@ -213,6 +215,9 @@ pub enum Command<'a> {
 
     /// Requests selective runtime statistics from the VESC.
     GetStats(StatsMask),
+
+    /// Resets runtime statistics. Set `ack` to `true` to request an ack reply.
+    ResetStats(bool),
 }
 
 impl<'a> Command<'a> {
@@ -270,6 +275,10 @@ impl<'a> Command<'a> {
             Self::GetStats(mask) => {
                 packer.pack_u8(CommandId::GetStats as u8)?;
                 packer.pack_u16(mask.bits())?;
+            }
+            Self::ResetStats(ack) => {
+                packer.pack_u8(CommandId::ResetStats as u8)?;
+                packer.pack_u8(*ack as u8)?;
             }
         }
         Ok(())
@@ -568,6 +577,9 @@ pub enum CommandReply {
 
     /// Selective statistics data in response to [`Command::GetStats`].
     GetStats(Stats),
+
+    /// Acknowledgement in response to [`Command::ResetStats`] with `ack=true`.
+    ResetStats,
 }
 
 impl CommandReply {
@@ -577,6 +589,7 @@ impl CommandReply {
             CommandId::GetValues => Self::unpack_get_values(unpacker)?,
             CommandId::GetValuesSelective => Self::unpack_get_values_selective(unpacker)?,
             CommandId::GetStats => Self::unpack_get_stats(unpacker)?,
+            CommandId::ResetStats => Self::unpack_reset_stats(),
             id => return Err(DecodeError::UnknownPacket { id: id as u8 }),
         })
     }
@@ -744,6 +757,10 @@ impl CommandReply {
             stats.count_time = unpacker.unpack_f32_auto()?;
         }
         Ok(CommandReply::GetStats(stats))
+    }
+
+    fn unpack_reset_stats() -> Self {
+        CommandReply::ResetStats
     }
 }
 

@@ -345,6 +345,14 @@ fn decode_get_stats_speed_avg() {
 }
 
 #[test]
+fn decode_reset_stats() {
+    let input = [2, 1, 129, 129, 169, 3];
+
+    let expected = (eq(&6), pat!(&CommandReply::ResetStats));
+    assert_that!(vesc::decode(&input), ok(expected));
+}
+
+#[test]
 fn decode_incomplete_data() {
     let input = [
         2, 23, 50, 0, 2, 161, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 128, 255, 255, 158, 70, 0, 1,
