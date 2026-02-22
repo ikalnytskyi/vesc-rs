@@ -19,6 +19,26 @@ fn encode_get_values() {
 }
 
 #[test]
+fn encode_set_duty() {
+    let mut buf = [0u8; 16];
+
+    let size = vesc::encode(Command::SetDuty(0.0), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 5, 0, 0, 0, 0, 35, 87, 3]));
+
+    let size = vesc::encode(Command::SetDuty(0.1), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 5, 0, 0, 39, 16, 174, 23, 3]));
+
+    let size = vesc::encode(Command::SetDuty(0.57123), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 5, 0, 0, 223, 35, 50, 79, 3]));
+
+    let size = vesc::encode(Command::SetDuty(-0.1), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 5, 255, 255, 216, 240, 212, 6, 3]));
+
+    let size = vesc::encode(Command::SetDuty(-0.57123), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 5, 255, 255, 32, 221, 187, 161, 3]));
+}
+
+#[test]
 fn encode_set_current() {
     let mut buf = [0u8; 16];
 

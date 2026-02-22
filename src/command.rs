@@ -43,6 +43,7 @@ pub enum DecodeError {
 enum CommandId {
     FwVersion = 0,
     GetValues = 4,
+    SetDuty = 5,
     SetCurrent = 6,
     SetCurrentBrake = 7,
     SetRpm = 8,
@@ -58,6 +59,7 @@ impl TryFrom<u8> for CommandId {
         match value {
             id if id == CommandId::FwVersion as u8 => Ok(CommandId::FwVersion),
             id if id == CommandId::GetValues as u8 => Ok(CommandId::GetValues),
+            id if id == CommandId::SetDuty as u8 => Ok(CommandId::SetDuty),
             id if id == CommandId::SetCurrent as u8 => Ok(CommandId::SetCurrent),
             id if id == CommandId::SetCurrentBrake as u8 => Ok(CommandId::SetCurrentBrake),
             id if id == CommandId::SetRpm as u8 => Ok(CommandId::SetRpm),
@@ -134,6 +136,9 @@ pub enum Command<'a> {
     /// Requests the complete set of telemetry data from the VESC.
     GetValues,
 
+    /// Sets the motor duty cycle ratio. Valid range is typically -1.0 to 1.0.
+    SetDuty(f32),
+
     /// Sets the motor current in amperes. Positive values drive forward;
     /// negative values drive reverse.
     SetCurrent(f32),
@@ -171,6 +176,10 @@ impl<'a> Command<'a> {
             }
             Self::GetValues => {
                 packer.pack_u8(CommandId::GetValues as u8)?;
+            }
+            Self::SetDuty(duty) => {
+                packer.pack_u8(CommandId::SetDuty as u8)?;
+                packer.pack_f32(*duty, 100000.0)?;
             }
             Self::SetCurrent(current) => {
                 packer.pack_u8(CommandId::SetCurrent as u8)?;
