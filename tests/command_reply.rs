@@ -301,6 +301,50 @@ fn decode_get_values_selective_fault_code() {
 }
 
 #[test]
+fn decode_get_stats() {
+    let input = [
+        2, 49, 128, 0, 0, 7, 255, 63, 128, 0, 0, 64, 0, 0, 0, 64, 64, 0, 0, 64, 128, 0, 0, 64, 160,
+        0, 0, 64, 192, 0, 0, 64, 224, 0, 0, 65, 0, 0, 0, 65, 16, 0, 0, 65, 32, 0, 0, 65, 48, 0, 0,
+        213, 206, 3,
+    ];
+
+    let expected = (
+        eq(&54),
+        pat!(&CommandReply::GetStats(pat!(vesc::Stats {
+            speed_avg: approx_eq(1.0),
+            speed_max: approx_eq(2.0),
+            power_avg: approx_eq(3.0),
+            power_max: approx_eq(4.0),
+            current_avg: approx_eq(5.0),
+            current_max: approx_eq(6.0),
+            temp_mosfet_avg: approx_eq(7.0),
+            temp_mosfet_max: approx_eq(8.0),
+            temp_motor_avg: approx_eq(9.0),
+            temp_motor_max: approx_eq(10.0),
+            count_time: approx_eq(11.0),
+        }))),
+    );
+    assert_that!(vesc::decode(&input), ok(expected));
+}
+
+#[test]
+fn decode_get_stats_speed_avg() {
+    let input = [
+        2, 13, 128, 0, 0, 4, 1, 65, 72, 0, 0, 69, 97, 0, 0, 114, 118, 3,
+    ];
+
+    let expected = (
+        eq(&18),
+        pat!(&CommandReply::GetStats(pat!(vesc::Stats {
+            speed_avg: approx_eq(12.5),
+            count_time: approx_eq(3600.0),
+            ..
+        }))),
+    );
+    assert_that!(vesc::decode(&input), ok(expected));
+}
+
+#[test]
 fn decode_incomplete_data() {
     let input = [
         2, 23, 50, 0, 2, 161, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 128, 255, 255, 158, 70, 0, 1,

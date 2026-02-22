@@ -105,6 +105,11 @@ impl<'a> Unpacker<'a> {
     }
 
     #[inline]
+    pub fn unpack_f32_auto(&mut self) -> Result<f32, DecodeError> {
+        Ok(f32::from_bits(self.unpack_u32()?))
+    }
+
+    #[inline]
     pub fn unpack_c_string<const N: usize>(&mut self) -> Result<[u8; N], DecodeError> {
         let mut buf = [0u8; N];
         for slot in buf.iter_mut() {

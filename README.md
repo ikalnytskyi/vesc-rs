@@ -28,6 +28,7 @@ application that needs to communicate with VESC motor controllers.
 | `34`       | `ForwardCan`                      | ✅     |
 | `50`       | `GetValuesSelective`              | ✅     |
 | `110`      | `SetOdometer`                     | ✅     |
+| `128`      | `GetStats`                        | ✅     |
 
 ## Supported command replies
 
@@ -41,6 +42,7 @@ application that needs to communicate with VESC motor controllers.
 | `0`        | `FwVersion`                       | ✅     |
 | `4`        | `GetValues`                       | ✅     |
 | `50`       | `GetValuesSelective`              | ✅     |
+| `128`      | `GetStats`                        | ✅     |
 
 ## Installation
 

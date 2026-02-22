@@ -54,6 +54,7 @@ enum CommandId {
     ForwardCan = 34,
     GetValuesSelective = 50,
     SetOdometer = 110,
+    GetStats = 128,
 }
 
 impl TryFrom<u8> for CommandId {
@@ -74,6 +75,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::ForwardCan as u8 => Ok(CommandId::ForwardCan),
             id if id == CommandId::GetValuesSelective as u8 => Ok(CommandId::GetValuesSelective),
             id if id == CommandId::SetOdometer as u8 => Ok(CommandId::SetOdometer),
+            id if id == CommandId::GetStats as u8 => Ok(CommandId::GetStats),
             id => Err(DecodeError::UnknownPacket { id }),
         }
     }
@@ -119,6 +121,28 @@ bitflags! {
         const AVG_VOLTAGE_D         = 1 << 19;
         const AVG_VOLTAGE_Q         = 1 << 20;
         const STATUS                = 1 << 21;
+    }
+}
+
+/// A bitmask used with [`Command::GetStats`] to request specific statistics
+/// fields.
+#[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct StatsMask(u16);
+
+bitflags! {
+    impl StatsMask: u16 {
+        const SPEED_AVG = 1 << 0;
+        const SPEED_MAX = 1 << 1;
+        const POWER_AVG = 1 << 2;
+        const POWER_MAX = 1 << 3;
+        const CURRENT_AVG = 1 << 4;
+        const CURRENT_MAX = 1 << 5;
+        const TEMP_MOSFET_AVG = 1 << 6;
+        const TEMP_MOSFET_MAX = 1 << 7;
+        const TEMP_MOTOR_AVG = 1 << 8;
+        const TEMP_MOTOR_MAX = 1 << 9;
+        const COUNT_TIME = 1 << 10;
     }
 }
 
@@ -186,6 +210,9 @@ pub enum Command<'a> {
 
     /// Sets the odometer value.
     SetOdometer(u32),
+
+    /// Requests selective runtime statistics from the VESC.
+    GetStats(StatsMask),
 }
 
 impl<'a> Command<'a> {
@@ -239,6 +266,10 @@ impl<'a> Command<'a> {
             Self::SetOdometer(odometer) => {
                 packer.pack_u8(CommandId::SetOdometer as u8)?;
                 packer.pack_u32(*odometer)?;
+            }
+            Self::GetStats(mask) => {
+                packer.pack_u8(CommandId::GetStats as u8)?;
+                packer.pack_u16(mask.bits())?;
             }
         }
         Ok(())
@@ -499,6 +530,23 @@ pub struct Values {
     pub status: u8,
 }
 
+/// Runtime statistics returned by the motor controller.
+#[derive(Debug, Copy, Clone, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct Stats {
+    pub speed_avg: f32,
+    pub speed_max: f32,
+    pub power_avg: f32,
+    pub power_max: f32,
+    pub current_avg: f32,
+    pub current_max: f32,
+    pub temp_mosfet_avg: f32,
+    pub temp_mosfet_max: f32,
+    pub temp_motor_avg: f32,
+    pub temp_motor_max: f32,
+    pub count_time: f32,
+}
+
 /// Reply messages received from the VESC in response to commands.
 ///
 /// These represent the various types of responses that can be received from the
@@ -517,6 +565,9 @@ pub enum CommandReply {
     /// Contains only the data fields that were requested via the
     /// [`ValuesMask`]. Non-requested fields will have default values.
     GetValuesSelective(Values),
+
+    /// Selective statistics data in response to [`Command::GetStats`].
+    GetStats(Stats),
 }
 
 impl CommandReply {
@@ -525,6 +576,7 @@ impl CommandReply {
             CommandId::FwVersion => Self::unpack_fw_version(unpacker)?,
             CommandId::GetValues => Self::unpack_get_values(unpacker)?,
             CommandId::GetValuesSelective => Self::unpack_get_values_selective(unpacker)?,
+            CommandId::GetStats => Self::unpack_get_stats(unpacker)?,
             id => return Err(DecodeError::UnknownPacket { id: id as u8 }),
         })
     }
@@ -652,6 +704,46 @@ impl CommandReply {
             values.status = unpacker.unpack_u8()?;
         }
         Ok(CommandReply::GetValuesSelective(values))
+    }
+
+    fn unpack_get_stats(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
+        let mut stats = Stats::default();
+        let mask = unpacker.unpack_u32()?;
+
+        if mask & (StatsMask::SPEED_AVG.bits() as u32) != 0 {
+            stats.speed_avg = unpacker.unpack_f32_auto()?;
+        }
+        if mask & (StatsMask::SPEED_MAX.bits() as u32) != 0 {
+            stats.speed_max = unpacker.unpack_f32_auto()?;
+        }
+        if mask & (StatsMask::POWER_AVG.bits() as u32) != 0 {
+            stats.power_avg = unpacker.unpack_f32_auto()?;
+        }
+        if mask & (StatsMask::POWER_MAX.bits() as u32) != 0 {
+            stats.power_max = unpacker.unpack_f32_auto()?;
+        }
+        if mask & (StatsMask::CURRENT_AVG.bits() as u32) != 0 {
+            stats.current_avg = unpacker.unpack_f32_auto()?;
+        }
+        if mask & (StatsMask::CURRENT_MAX.bits() as u32) != 0 {
+            stats.current_max = unpacker.unpack_f32_auto()?;
+        }
+        if mask & (StatsMask::TEMP_MOSFET_AVG.bits() as u32) != 0 {
+            stats.temp_mosfet_avg = unpacker.unpack_f32_auto()?;
+        }
+        if mask & (StatsMask::TEMP_MOSFET_MAX.bits() as u32) != 0 {
+            stats.temp_mosfet_max = unpacker.unpack_f32_auto()?;
+        }
+        if mask & (StatsMask::TEMP_MOTOR_AVG.bits() as u32) != 0 {
+            stats.temp_motor_avg = unpacker.unpack_f32_auto()?;
+        }
+        if mask & (StatsMask::TEMP_MOTOR_MAX.bits() as u32) != 0 {
+            stats.temp_motor_max = unpacker.unpack_f32_auto()?;
+        }
+        if mask & (StatsMask::COUNT_TIME.bits() as u32) != 0 {
+            stats.count_time = unpacker.unpack_f32_auto()?;
+        }
+        Ok(CommandReply::GetStats(stats))
     }
 }
 

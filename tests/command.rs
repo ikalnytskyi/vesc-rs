@@ -1,6 +1,6 @@
 use googletest::prelude::*;
 
-use vesc::{self, Command, EncodeError, ValuesMask};
+use vesc::{self, Command, EncodeError, StatsMask, ValuesMask};
 
 #[test]
 fn encode_fw_version() {
@@ -203,6 +203,23 @@ fn encode_set_odometer() {
 
     let size = vesc::encode(Command::SetOdometer(u32::MAX), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 110, 255, 255, 255, 255, 79, 187, 3]));
+}
+
+#[test]
+fn encode_get_stats() {
+    let mut buf = [0u8; 16];
+
+    let mask = StatsMask::SPEED_AVG;
+    let size = vesc::encode(Command::GetStats(mask), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 3, 128, 0, 1, 43, 123, 3]));
+
+    let mask = StatsMask::COUNT_TIME;
+    let size = vesc::encode(Command::GetStats(mask), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 3, 128, 4, 0, 247, 158, 3]));
+
+    let mask = StatsMask::SPEED_AVG | StatsMask::TEMP_MOTOR_MAX | StatsMask::COUNT_TIME;
+    let size = vesc::encode(Command::GetStats(mask), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 3, 128, 6, 1, 129, 221, 3]));
 }
 
 #[test]

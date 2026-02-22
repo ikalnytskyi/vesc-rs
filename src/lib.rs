@@ -65,6 +65,8 @@ pub use command::{
     NrfFlags,
     QmlAppFlags,
     QmlHw,
+    Stats,
+    StatsMask,
     Values,
     ValuesMask,
     decode,
