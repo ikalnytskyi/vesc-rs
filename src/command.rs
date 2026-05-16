@@ -55,6 +55,7 @@ enum CommandId {
     ForwardCan = 34,
     GetValuesSelective = 50,
     GetValuesSetupSelective = 51,
+    SetCurrentRel = 84,
     SetOdometer = 110,
     GetStats = 128,
     ResetStats = 129,
@@ -83,6 +84,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::GetValuesSetupSelective as u8 => {
                 Ok(CommandId::GetValuesSetupSelective)
             }
+            id if id == CommandId::SetCurrentRel as u8 => Ok(CommandId::SetCurrentRel),
             id if id == CommandId::SetOdometer as u8 => Ok(CommandId::SetOdometer),
             id if id == CommandId::GetStats as u8 => Ok(CommandId::GetStats),
             id if id == CommandId::ResetStats as u8 => Ok(CommandId::ResetStats),
@@ -259,6 +261,9 @@ pub enum Command<'a> {
     /// bitmask using the setup-selective packet format.
     GetValuesSetupSelective(ValuesSetupMask),
 
+    /// Sets motor current as a relative normalized value.
+    SetCurrentRel(f32),
+
     /// Sets the odometer value.
     SetOdometer(u32),
 
@@ -329,6 +334,10 @@ impl<'a> Command<'a> {
             Self::GetValuesSetupSelective(mask) => {
                 packer.pack_u8(CommandId::GetValuesSetupSelective as u8)?;
                 packer.pack_u32(mask.bits())?;
+            }
+            Self::SetCurrentRel(current_rel) => {
+                packer.pack_u8(CommandId::SetCurrentRel as u8)?;
+                packer.pack_f32(*current_rel, 100000.0)?;
             }
             Self::SetOdometer(odometer) => {
                 packer.pack_u8(CommandId::SetOdometer as u8)?;

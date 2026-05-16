@@ -67,6 +67,20 @@ fn encode_set_current() {
 }
 
 #[test]
+fn encode_set_current_rel() {
+    let mut buf = [0u8; 16];
+
+    let size = vesc::encode(Command::SetCurrentRel(0.0), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 84, 0, 0, 0, 0, 156, 52, 3]));
+
+    let size = vesc::encode(Command::SetCurrentRel(1.0), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 84, 0, 1, 134, 160, 175, 208, 3]));
+
+    let size = vesc::encode(Command::SetCurrentRel(-1.0), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 84, 255, 254, 121, 96, 241, 163, 3]));
+}
+
+#[test]
 fn encode_set_current_brake() {
     let mut buf = [0u8; 16];
 
