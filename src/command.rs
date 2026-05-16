@@ -54,6 +54,7 @@ enum CommandId {
     Alive = 30,
     ForwardCan = 34,
     GetValuesSelective = 50,
+    GetValuesSetupSelective = 51,
     SetOdometer = 110,
     GetStats = 128,
     ResetStats = 129,
@@ -79,6 +80,9 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::Alive as u8 => Ok(CommandId::Alive),
             id if id == CommandId::ForwardCan as u8 => Ok(CommandId::ForwardCan),
             id if id == CommandId::GetValuesSelective as u8 => Ok(CommandId::GetValuesSelective),
+            id if id == CommandId::GetValuesSetupSelective as u8 => {
+                Ok(CommandId::GetValuesSetupSelective)
+            }
             id if id == CommandId::SetOdometer as u8 => Ok(CommandId::SetOdometer),
             id if id == CommandId::GetStats as u8 => Ok(CommandId::GetStats),
             id if id == CommandId::ResetStats as u8 => Ok(CommandId::ResetStats),
@@ -130,6 +134,40 @@ bitflags! {
         const AVG_VOLTAGE_D         = 1 << 19;
         const AVG_VOLTAGE_Q         = 1 << 20;
         const STATUS                = 1 << 21;
+    }
+}
+
+/// A bitmask used with [`Command::GetValuesSetupSelective`] to request setup
+/// telemetry fields. This corresponds to `COMM_GET_VALUES_SETUP_SELECTIVE` in
+/// firmware.
+#[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct ValuesSetupMask(u32);
+
+bitflags! {
+    impl ValuesSetupMask: u32 {
+        const TEMP_MOSFET             = 1 << 0;
+        const TEMP_MOTOR              = 1 << 1;
+        const AVG_CURRENT_MOTOR       = 1 << 2;
+        const AVG_CURRENT_INPUT       = 1 << 3;
+        const DUTY_CYCLE              = 1 << 4;
+        const RPM                     = 1 << 5;
+        const SPEED                   = 1 << 6;
+        const VOLTAGE_IN              = 1 << 7;
+        const BATTERY_LEVEL           = 1 << 8;
+        const AMP_HOURS               = 1 << 9;
+        const AMP_HOURS_CHARGED       = 1 << 10;
+        const WATT_HOURS              = 1 << 11;
+        const WATT_HOURS_CHARGED      = 1 << 12;
+        const DISTANCE                = 1 << 13;
+        const DISTANCE_ABS            = 1 << 14;
+        const PID_POS                 = 1 << 15;
+        const FAULT_CODE              = 1 << 16;
+        const CONTROLLER_ID           = 1 << 17;
+        const NUM_VESCS               = 1 << 18;
+        const WATT_HOURS_BATTERY_LEFT = 1 << 19;
+        const ODOMETER                = 1 << 20;
+        const UPTIME_MS               = 1 << 21;
     }
 }
 
@@ -217,6 +255,10 @@ pub enum Command<'a> {
     /// data fields are needed.
     GetValuesSelective(ValuesMask),
 
+    /// Requests setup telemetry fields specified by a [`ValuesSetupMask`]
+    /// bitmask using the setup-selective packet format.
+    GetValuesSetupSelective(ValuesSetupMask),
+
     /// Sets the odometer value.
     SetOdometer(u32),
 
@@ -282,6 +324,10 @@ impl<'a> Command<'a> {
             }
             Self::GetValuesSelective(mask) => {
                 packer.pack_u8(CommandId::GetValuesSelective as u8)?;
+                packer.pack_u32(mask.bits())?;
+            }
+            Self::GetValuesSetupSelective(mask) => {
+                packer.pack_u8(CommandId::GetValuesSetupSelective as u8)?;
                 packer.pack_u32(mask.bits())?;
             }
             Self::SetOdometer(odometer) => {
@@ -590,6 +636,35 @@ pub struct Values {
     pub status: u8,
 }
 
+/// Setup telemetry data returned by the motor controller in response to
+/// [`Command::GetValuesSetupSelective`].
+#[derive(Debug, Copy, Clone, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct SetupValues {
+    pub temp_mosfet: f32,
+    pub temp_motor: f32,
+    pub avg_current_motor: f32,
+    pub avg_current_input: f32,
+    pub duty_cycle: f32,
+    pub rpm: f32,
+    pub speed: f32,
+    pub voltage_in: f32,
+    pub battery_level: f32,
+    pub amp_hours: f32,
+    pub amp_hours_charged: f32,
+    pub watt_hours: f32,
+    pub watt_hours_charged: f32,
+    pub distance: f32,
+    pub distance_abs: f32,
+    pub pid_pos: f32,
+    pub fault_code: FaultCode,
+    pub controller_id: u8,
+    pub num_vescs: u8,
+    pub watt_hours_battery_left: f32,
+    pub odometer: u32,
+    pub uptime_ms: u32,
+}
+
 /// Runtime statistics returned by the motor controller.
 #[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -626,6 +701,10 @@ pub enum CommandReply {
     /// [`ValuesMask`]. Non-requested fields will have default values.
     GetValuesSelective(Values),
 
+    /// Setup-selective telemetry data in response to
+    /// [`Command::GetValuesSetupSelective`].
+    GetValuesSetupSelective(SetupValues),
+
     /// Selective statistics data in response to [`Command::GetStats`].
     GetStats(Stats),
 
@@ -642,6 +721,9 @@ impl CommandReply {
             CommandId::FwVersion => Self::unpack_fw_version(unpacker)?,
             CommandId::GetValues => Self::unpack_get_values(unpacker)?,
             CommandId::GetValuesSelective => Self::unpack_get_values_selective(unpacker)?,
+            CommandId::GetValuesSetupSelective => {
+                Self::unpack_get_values_setup_selective(unpacker)?
+            }
             CommandId::GetStats => Self::unpack_get_stats(unpacker)?,
             CommandId::ResetStats => Self::unpack_reset_stats(),
             CommandId::FwInfo => Self::unpack_fw_info(unpacker)?,
@@ -772,6 +854,80 @@ impl CommandReply {
             values.status = unpacker.unpack_u8()?;
         }
         Ok(CommandReply::GetValuesSelective(values))
+    }
+
+    fn unpack_get_values_setup_selective(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
+        let mut values = SetupValues::default();
+        let mask = ValuesSetupMask::from_bits_retain(unpacker.unpack_u32()?);
+
+        if mask.contains(ValuesSetupMask::TEMP_MOSFET) {
+            values.temp_mosfet = unpacker.unpack_f16(10.0)?;
+        }
+        if mask.contains(ValuesSetupMask::TEMP_MOTOR) {
+            values.temp_motor = unpacker.unpack_f16(10.0)?;
+        }
+        if mask.contains(ValuesSetupMask::AVG_CURRENT_MOTOR) {
+            values.avg_current_motor = unpacker.unpack_f32(100.0)?;
+        }
+        if mask.contains(ValuesSetupMask::AVG_CURRENT_INPUT) {
+            values.avg_current_input = unpacker.unpack_f32(100.0)?;
+        }
+        if mask.contains(ValuesSetupMask::DUTY_CYCLE) {
+            values.duty_cycle = unpacker.unpack_f16(1000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::RPM) {
+            values.rpm = unpacker.unpack_f32(1.0)?;
+        }
+        if mask.contains(ValuesSetupMask::SPEED) {
+            values.speed = unpacker.unpack_f32(1000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::VOLTAGE_IN) {
+            values.voltage_in = unpacker.unpack_f16(10.0)?;
+        }
+        if mask.contains(ValuesSetupMask::BATTERY_LEVEL) {
+            values.battery_level = unpacker.unpack_f16(1000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::AMP_HOURS) {
+            values.amp_hours = unpacker.unpack_f32(10000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::AMP_HOURS_CHARGED) {
+            values.amp_hours_charged = unpacker.unpack_f32(10000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::WATT_HOURS) {
+            values.watt_hours = unpacker.unpack_f32(10000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::WATT_HOURS_CHARGED) {
+            values.watt_hours_charged = unpacker.unpack_f32(10000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::DISTANCE) {
+            values.distance = unpacker.unpack_f32(1000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::DISTANCE_ABS) {
+            values.distance_abs = unpacker.unpack_f32(1000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::PID_POS) {
+            values.pid_pos = unpacker.unpack_f32(1000000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::FAULT_CODE) {
+            values.fault_code = unpacker.unpack_u8()?.into();
+        }
+        if mask.contains(ValuesSetupMask::CONTROLLER_ID) {
+            values.controller_id = unpacker.unpack_u8()?;
+        }
+        if mask.contains(ValuesSetupMask::NUM_VESCS) {
+            values.num_vescs = unpacker.unpack_u8()?;
+        }
+        if mask.contains(ValuesSetupMask::WATT_HOURS_BATTERY_LEFT) {
+            values.watt_hours_battery_left = unpacker.unpack_f32(1000.0)?;
+        }
+        if mask.contains(ValuesSetupMask::ODOMETER) {
+            values.odometer = unpacker.unpack_u32()?;
+        }
+        if mask.contains(ValuesSetupMask::UPTIME_MS) {
+            values.uptime_ms = unpacker.unpack_u32()?;
+        }
+
+        Ok(CommandReply::GetValuesSetupSelective(values))
     }
 
     fn unpack_get_stats(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {

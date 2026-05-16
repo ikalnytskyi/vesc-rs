@@ -1,6 +1,6 @@
 use googletest::prelude::*;
 
-use vesc::{self, Command, EncodeError, StatsMask, ValuesMask};
+use vesc::{self, Command, EncodeError, StatsMask, ValuesMask, ValuesSetupMask};
 
 #[test]
 fn encode_fw_version() {
@@ -194,6 +194,15 @@ fn encode_get_values_selective() {
     let mask = ValuesMask::RPM | ValuesMask::WATT_HOURS | ValuesMask::CONTROLLER_ID;
     let size = vesc::encode(Command::GetValuesSelective(mask), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 50, 0, 2, 8, 128, 62, 44, 3]));
+}
+
+#[test]
+fn encode_get_values_setup_selective() {
+    let mut buf = [0u8; 16];
+
+    let mask = ValuesSetupMask::ODOMETER;
+    let size = vesc::encode(Command::GetValuesSetupSelective(mask), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 51, 0, 16, 0, 0, 161, 95, 3]));
 }
 
 #[test]

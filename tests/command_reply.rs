@@ -1,6 +1,17 @@
 use googletest::prelude::*;
 
-use vesc::{CommandReply, DecodeError, FaultCode, HwType, NrfFlags, QmlAppFlags, QmlHw, Values};
+use vesc::{
+    //
+    CommandReply,
+    DecodeError,
+    FaultCode,
+    HwType,
+    NrfFlags,
+    QmlAppFlags,
+    QmlHw,
+    SetupValues,
+    Values,
+};
 
 #[test]
 fn decode_fw_version_incomplete_data() {
@@ -320,6 +331,20 @@ fn decode_get_values_selective_fault_code() {
             tachometer: eq(-18982),
             fault_code: eq(FaultCode::AbsOverCurrent),
             controller_id: eq(20),
+            ..
+        }))),
+    );
+    assert_that!(vesc::decode(&input), ok(expected));
+}
+
+#[test]
+fn decode_get_values_setup_selective_odometer() {
+    let input = [2, 9, 51, 0, 16, 0, 0, 0, 0, 4, 210, 201, 198, 3];
+
+    let expected = (
+        eq(&14),
+        pat!(&CommandReply::GetValuesSetupSelective(pat!(SetupValues {
+            odometer: eq(1234),
             ..
         }))),
     );
