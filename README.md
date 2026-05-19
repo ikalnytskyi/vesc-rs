@@ -11,7 +11,11 @@ application that needs to communicate with VESC motor controllers.
 > [!NOTE]
 >
 > If you find a missing command, feel free to contribute! Adding a new command
-> should be relatively easy. Just follow the well-established pattern.
+> should be relatively easy. Just follow the well-established pattern (see
+> commits [`b0287c7`] and [`1049f10`] for reference).
+>
+> [`b0287c7`]: https://github.com/ikalnytskyi/vesc-rs/commit/b0287c7
+> [`1049f10`]: https://github.com/ikalnytskyi/vesc-rs/commit/1049f10
 
 | Command ID | Command Name                      | Status |
 |:----------:|-----------------------------------|--------|
