@@ -37,6 +37,7 @@ pub enum DecodeError {
 enum CommandId {
     GetValues = 4,
     SetCurrent = 6,
+    SetCurrentBrake = 7,
     SetRpm = 8,
     SetHandbrake = 10,
     ForwardCan = 34,
@@ -50,6 +51,7 @@ impl TryFrom<u8> for CommandId {
         match value {
             id if id == CommandId::GetValues as u8 => Ok(CommandId::GetValues),
             id if id == CommandId::SetCurrent as u8 => Ok(CommandId::SetCurrent),
+            id if id == CommandId::SetCurrentBrake as u8 => Ok(CommandId::SetCurrentBrake),
             id if id == CommandId::SetRpm as u8 => Ok(CommandId::SetRpm),
             id if id == CommandId::SetHandbrake as u8 => Ok(CommandId::SetHandbrake),
             id if id == CommandId::ForwardCan as u8 => Ok(CommandId::ForwardCan),
@@ -125,6 +127,10 @@ pub enum Command<'a> {
     /// negative values drive reverse.
     SetCurrent(f32),
 
+    /// Set motor braking current in amperes, positive values should be used,
+    /// even though VESC does `fasbf` on this value so it doesn't matter.
+    SetCurrentBrake(f32),
+
     /// Sets the motor speed in revolutions per minute (RPM). Positive values
     /// drive forward; negative values drive reverse.
     SetRpm(i32),
@@ -154,6 +160,10 @@ impl<'a> Command<'a> {
             }
             Self::SetCurrent(current) => {
                 packer.pack_u8(CommandId::SetCurrent as u8)?;
+                packer.pack_f32(*current, 1000.0)?;
+            }
+            Self::SetCurrentBrake(current) => {
+                packer.pack_u8(CommandId::SetCurrentBrake as u8)?;
                 packer.pack_f32(*current, 1000.0)?;
             }
             Self::SetRpm(rpm) => {
