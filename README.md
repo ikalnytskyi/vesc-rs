@@ -17,6 +17,7 @@ application that needs to communicate with VESC motor controllers.
 |:----------:|-----------------------------------|--------|
 | `0`        | `FwVersion`                       | ✅     |
 | `4`        | `GetValues`                       | ✅     |
+| `5`        | `SetDuty`                         | ✅     |
 | `6`        | `SetCurrent`                      | ✅     |
 | `7`        | `SetCurrentBrake`                 | ✅     |
 | `8`        | `SetRpm`                          | ✅     |
