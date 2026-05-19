@@ -3,6 +3,14 @@ use googletest::prelude::*;
 use vesc::{self, Command, EncodeError, ValuesMask};
 
 #[test]
+fn encode_fw_version() {
+    let mut buf = [0u8; 16];
+
+    let size = vesc::encode(Command::FwVersion, &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 1, 0, 0, 0, 3]));
+}
+
+#[test]
 fn encode_get_values() {
     let mut buf = [0u8; 16];
 

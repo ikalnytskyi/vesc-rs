@@ -1,6 +1,53 @@
 use googletest::prelude::*;
 
-use vesc::{CommandReply, DecodeError, FaultCode, Values};
+use vesc::{CommandReply, DecodeError, FaultCode, HwType, NrfFlags, QmlAppFlags, QmlHw, Values};
+
+#[test]
+fn decode_fw_version_incomplete_data() {
+    let input = [2, 3, 0, 7, 0, 153, 151, 3];
+    assert_that!(vesc::decode(&input), err(eq(&DecodeError::IncompleteData)));
+}
+
+#[test]
+fn decode_fw_version_incomplete_uuid() {
+    let input = [2, 5, 0, 7, 0, 97, 0, 105, 54, 3];
+    assert_that!(vesc::decode(&input), err(eq(&DecodeError::IncompleteData)));
+}
+
+#[test]
+fn decode_fw_version_full_reply() {
+    let input = [
+        2, 41, 0, 7, 0, 86, 69, 83, 67, 54, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 0, 0, 2,
+        1, 2, 3, 3, 100, 101, 102, 97, 117, 108, 116, 0, 18, 52, 86, 120, 225, 223, 3,
+    ];
+
+    let expected = (
+        eq(&46),
+        pat!(&CommandReply::FwVersion(pat!(vesc::FwVersion {
+            major: eq(7),
+            minor: eq(0),
+            uuid: eq([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+            pairing_done: eq(true),
+            test_version_number: eq(0),
+            hw_type: eq(HwType::Vesc),
+            custom_config_num: eq(2),
+            has_phase_filters: eq(true),
+            qml_hw: eq(QmlHw::Fullscreen),
+            qml_app: eq(QmlAppFlags::from_bits_retain(3)),
+            nrf_flags: eq(NrfFlags::from_bits_retain(3)),
+            hw_crc: eq(0x12345678),
+            ..
+        }))),
+    );
+    assert_that!(vesc::decode(&input), ok(expected));
+
+    let (_, reply) = vesc::decode(&input).unwrap();
+    let CommandReply::FwVersion(version) = reply else {
+        panic!("expected fw version reply");
+    };
+    assert_that!(version.hw_name(), some(eq("VESC6")));
+    assert_that!(version.fw_name(), some(eq("default")));
+}
 
 #[test]
 fn decode_get_values_zero_rpm() {
