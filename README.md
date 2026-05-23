@@ -60,7 +60,7 @@ Add this to your Cargo.toml:
 
 ```rust
 [dependencies]
-vesc = "0.1"
+vesc = "0.4"
 ```
 
 ## Usage
