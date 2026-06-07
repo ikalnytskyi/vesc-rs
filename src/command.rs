@@ -659,6 +659,8 @@ pub struct Values {
 /// [`Command::GetValuesSetupSelective`].
 #[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "postcard", derive(Schema))]
 pub struct SetupValues {
     pub temp_mosfet: f32,
     pub temp_motor: f32,
@@ -687,6 +689,8 @@ pub struct SetupValues {
 /// Runtime statistics returned by the motor controller.
 #[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "postcard", derive(Schema))]
 pub struct Stats {
     pub speed_avg: f32,
     pub speed_max: f32,
