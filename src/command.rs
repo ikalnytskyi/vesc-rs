@@ -1,3 +1,9 @@
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "postcard")]
+use postcard_schema::Schema;
+
 use bitflags::bitflags;
 use core::ffi::CStr;
 
@@ -374,6 +380,8 @@ impl<'a> Command<'a> {
 /// calling [`Command::GetValues`] or [`Command::GetValuesSelective`].
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "postcard", derive(Schema))]
 #[repr(u8)]
 pub enum FaultCode {
     #[default]
@@ -618,6 +626,8 @@ impl FwInfo {
 /// [`ValuesMask`] are populated; all others remain at their default.
 #[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "postcard", derive(Schema))]
 pub struct Values {
     pub temp_mosfet: f32,
     pub temp_motor: f32,
@@ -649,6 +659,8 @@ pub struct Values {
 /// [`Command::GetValuesSetupSelective`].
 #[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "postcard", derive(Schema))]
 pub struct SetupValues {
     pub temp_mosfet: f32,
     pub temp_motor: f32,
@@ -677,6 +689,8 @@ pub struct SetupValues {
 /// Runtime statistics returned by the motor controller.
 #[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "postcard", derive(Schema))]
 pub struct Stats {
     pub speed_avg: f32,
     pub speed_max: f32,
