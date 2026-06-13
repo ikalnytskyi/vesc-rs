@@ -65,6 +65,25 @@ impl<const BUFLEN: usize> Decoder<BUFLEN> {
         self.wpos += copied;
         Ok(copied)
     }
+
+    /// Returns the next decoded frame and the raw bytes that were consumed,
+    /// or `None` if more data is needed.
+    pub fn next_item(&mut self) -> Option<(CommandReply, &[u8])> {
+        while self.rpos < self.wpos {
+            match crate::decode(&self.buf[self.rpos..self.wpos]) {
+                Ok((consumed, reply)) => {
+                    let start = self.rpos;
+                    self.rpos += consumed;
+                    let raw = &self.buf[start..self.rpos];
+                    return Some((reply, raw));
+                }
+                Err(DecodeError::IncompleteData) => return None,
+                Err(_err) => (),
+            }
+            self.rpos += 1;
+        }
+        None
+    }
 }
 
 impl<const BUFLEN: usize> core::iter::Iterator for Decoder<BUFLEN> {
