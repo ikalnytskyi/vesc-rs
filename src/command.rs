@@ -6,6 +6,7 @@ use super::packer::{Packer, Unpacker};
 const CRC16: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_XMODEM);
 const FRAME_END: u8 = 3;
 const FRAME_START_SHORT: u8 = 2;
+const FRAME_START_LONG: u8 = 3;
 
 // The VESC firmware caps the FwVersion payload at 65 bytes.
 // This decoder allows each name buffer to hold up to 39 bytes (including NUL).
@@ -35,6 +36,15 @@ pub enum DecodeError {
 
     #[error("unrecognized or unsupported packet: {id}")]
     UnknownPacket { id: u8 },
+
+    #[error("Invalid frame start byte")]
+    InvalidStartByte,
+
+    #[error("Invalid frame end byte")]
+    InvalidEndByte,
+
+    #[error("Length mismatch")]
+    InvalidLength,
 
     #[error("the frame structure is frame")]
     InvalidFrame,
@@ -722,6 +732,8 @@ pub enum CommandReply {
 
     /// Firmware build information in response to [`Command::FwInfo`].
     FwInfo(FwInfo),
+
+    Unknown(u8),
 }
 
 impl CommandReply {
@@ -1044,24 +1056,40 @@ pub fn encode(command: Command, buf: &mut [u8]) -> Result<usize, EncodeError> {
 pub fn decode(buf: &[u8]) -> Result<(usize, CommandReply), DecodeError> {
     let mut unpacker = Unpacker::new(buf);
 
+    // frame_start tells how many bytes are before the data
     let frame_start = unpacker.unpack_u8()?;
-    if frame_start != FRAME_START_SHORT {
-        return Err(DecodeError::InvalidFrame);
+    let payload_len = match frame_start {
+        FRAME_START_SHORT => unpacker.unpack_u8()? as usize,
+        FRAME_START_LONG => unpacker.unpack_u16()? as usize,
+        _ => return Err(DecodeError::InvalidStartByte),
+    };
+
+    let reply = match CommandReply::unpack_from(&mut unpacker) {
+        Ok(reply) => reply,
+        Err(DecodeError::UnknownPacket { id }) => CommandReply::Unknown(id),
+        Err(err) => return Err(err),
+    };
+
+    if let CommandReply::Unknown(_) = reply {
+        // With unknown packets we do not have unpacking function,
+        // so we pretend that we unpack all data bytes here
+        // We have already unpacked the command ID, so unpack one less byte
+        for _ in 0..payload_len.saturating_sub(1) {
+            unpacker.unpack_u8()?;
+        }
     }
-    let payload_len = unpacker.unpack_u8()? as usize;
-    let reply = CommandReply::unpack_from(&mut unpacker)?;
 
     // Knowing the payload length upfront isn't strictly necessary here, but it
     // provides an extra validation step: we can confirm that the frame is
     // well-formed and report an error if the declared length doesn't match the
     // actual payload length.
     if payload_len != unpacker.pos - (frame_start as usize) {
-        return Err(DecodeError::InvalidFrame);
+        return Err(DecodeError::InvalidLength);
     }
     let payload = &unpacker.buf[(frame_start as usize)..unpacker.pos];
     let checksum_expected = unpacker.unpack_u16()?;
     if unpacker.unpack_u8()? != FRAME_END {
-        return Err(DecodeError::InvalidFrame);
+        return Err(DecodeError::InvalidEndByte);
     }
     let checksum_actual = CRC16.checksum(payload);
     if checksum_actual != checksum_expected {
