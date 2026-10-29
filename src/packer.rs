@@ -90,7 +90,7 @@ impl<'a> Unpacker<'a> {
     }
 
     #[inline]
-    pub fn unpack_f32_auto(&mut self) -> Result<f32, DecodeError> {
+    pub fn unpack_f32(&mut self) -> Result<f32, DecodeError> {
         Ok(f32::from_bits(self.unpack_u32()?))
     }
 

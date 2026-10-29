@@ -1013,37 +1013,37 @@ impl CommandReply {
         let mask = unpacker.unpack_u32()?;
 
         if mask & (StatsMask::SPEED_AVG.bits() as u32) != 0 {
-            stats.speed_avg = unpacker.unpack_f32_auto()?;
+            stats.speed_avg = unpacker.unpack_f32()?;
         }
         if mask & (StatsMask::SPEED_MAX.bits() as u32) != 0 {
-            stats.speed_max = unpacker.unpack_f32_auto()?;
+            stats.speed_max = unpacker.unpack_f32()?;
         }
         if mask & (StatsMask::POWER_AVG.bits() as u32) != 0 {
-            stats.power_avg = unpacker.unpack_f32_auto()?;
+            stats.power_avg = unpacker.unpack_f32()?;
         }
         if mask & (StatsMask::POWER_MAX.bits() as u32) != 0 {
-            stats.power_max = unpacker.unpack_f32_auto()?;
+            stats.power_max = unpacker.unpack_f32()?;
         }
         if mask & (StatsMask::CURRENT_AVG.bits() as u32) != 0 {
-            stats.current_avg = unpacker.unpack_f32_auto()?;
+            stats.current_avg = unpacker.unpack_f32()?;
         }
         if mask & (StatsMask::CURRENT_MAX.bits() as u32) != 0 {
-            stats.current_max = unpacker.unpack_f32_auto()?;
+            stats.current_max = unpacker.unpack_f32()?;
         }
         if mask & (StatsMask::TEMP_MOSFET_AVG.bits() as u32) != 0 {
-            stats.temp_mosfet_avg = unpacker.unpack_f32_auto()?;
+            stats.temp_mosfet_avg = unpacker.unpack_f32()?;
         }
         if mask & (StatsMask::TEMP_MOSFET_MAX.bits() as u32) != 0 {
-            stats.temp_mosfet_max = unpacker.unpack_f32_auto()?;
+            stats.temp_mosfet_max = unpacker.unpack_f32()?;
         }
         if mask & (StatsMask::TEMP_MOTOR_AVG.bits() as u32) != 0 {
-            stats.temp_motor_avg = unpacker.unpack_f32_auto()?;
+            stats.temp_motor_avg = unpacker.unpack_f32()?;
         }
         if mask & (StatsMask::TEMP_MOTOR_MAX.bits() as u32) != 0 {
-            stats.temp_motor_max = unpacker.unpack_f32_auto()?;
+            stats.temp_motor_max = unpacker.unpack_f32()?;
         }
         if mask & (StatsMask::COUNT_TIME.bits() as u32) != 0 {
-            stats.count_time = unpacker.unpack_f32_auto()?;
+            stats.count_time = unpacker.unpack_f32()?;
         }
         Ok(CommandReply::GetStats(stats))
     }
