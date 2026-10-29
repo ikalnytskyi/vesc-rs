@@ -37,11 +37,6 @@ impl<'a> Packer<'a> {
     }
 
     #[inline]
-    pub fn pack_f32(&mut self, value: f32, scale: f32) -> Result<(), EncodeError> {
-        self.pack_i32((value * scale) as i32)
-    }
-
-    #[inline]
     fn pack(&mut self, bytes: &[u8]) -> Result<(), EncodeError> {
         let need = bytes.len();
         if self.pos + need > self.buf.len() {
@@ -92,16 +87,6 @@ impl<'a> Unpacker<'a> {
     #[inline]
     pub fn unpack_u8(&mut self) -> Result<u8, DecodeError> {
         Ok(u8::from_be_bytes(self.consume(1)?.try_into().unwrap()))
-    }
-
-    #[inline]
-    pub fn unpack_f32(&mut self, scale: f32) -> Result<f32, DecodeError> {
-        Ok(self.unpack_i32()? as f32 / scale)
-    }
-
-    #[inline]
-    pub fn unpack_f16(&mut self, scale: f32) -> Result<f32, DecodeError> {
-        Ok(self.unpack_i16()? as f32 / scale)
     }
 
     #[inline]

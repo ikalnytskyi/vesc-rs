@@ -218,25 +218,25 @@ pub enum Command<'a> {
     GetValues,
 
     /// Sets the motor duty cycle ratio. Valid range is typically -1.0 to 1.0.
-    SetDuty(f32),
+    SetDuty(Duty),
 
     /// Sets the motor current in amperes. Positive values drive forward;
     /// negative values drive reverse.
-    SetCurrent(f32),
+    SetCurrent(Current),
 
     /// Set motor braking current in amperes, positive values should be used,
     /// even though VESC does `fasbf` on this value so it doesn't matter.
-    SetCurrentBrake(f32),
+    SetCurrentBrake(Current),
 
     /// Sets the motor speed in revolutions per minute (RPM). Positive values
     /// drive forward; negative values drive reverse.
     SetRpm(i32),
 
     /// Sets the motor position.
-    SetPos(f32),
+    SetPos(Position),
 
     /// Sets the handbrake current in amperes.
-    SetHandbrake(f32),
+    SetHandbrake(Current),
 
     /// Reboots the VESC controller.
     Reboot,
@@ -262,7 +262,7 @@ pub enum Command<'a> {
     GetValuesSetupSelective(ValuesSetupMask),
 
     /// Sets motor current as a relative normalized value.
-    SetCurrentRel(f32),
+    SetCurrentRel(CurrentRel),
 
     /// Sets the odometer value.
     SetOdometer(u32),
@@ -294,15 +294,15 @@ impl<'a> Command<'a> {
             }
             Self::SetDuty(duty) => {
                 packer.pack_u8(CommandId::SetDuty as u8)?;
-                packer.pack_f32(*duty, 100000.0)?;
+                packer.pack_i32(duty.raw())?;
             }
             Self::SetCurrent(current) => {
                 packer.pack_u8(CommandId::SetCurrent as u8)?;
-                packer.pack_f32(*current, 1000.0)?;
+                packer.pack_i32(current.raw())?;
             }
             Self::SetCurrentBrake(current) => {
                 packer.pack_u8(CommandId::SetCurrentBrake as u8)?;
-                packer.pack_f32(*current, 1000.0)?;
+                packer.pack_i32(current.raw())?;
             }
             Self::SetRpm(rpm) => {
                 packer.pack_u8(CommandId::SetRpm as u8)?;
@@ -310,11 +310,11 @@ impl<'a> Command<'a> {
             }
             Self::SetPos(pos) => {
                 packer.pack_u8(CommandId::SetPos as u8)?;
-                packer.pack_f32(*pos, 1000000.0)?;
+                packer.pack_i32(pos.raw())?;
             }
             Self::SetHandbrake(current) => {
                 packer.pack_u8(CommandId::SetHandbrake as u8)?;
-                packer.pack_f32(*current, 1000.0)?;
+                packer.pack_i32(current.raw())?;
             }
             Self::Reboot => {
                 packer.pack_u8(CommandId::Reboot as u8)?;
@@ -337,7 +337,7 @@ impl<'a> Command<'a> {
             }
             Self::SetCurrentRel(current_rel) => {
                 packer.pack_u8(CommandId::SetCurrentRel as u8)?;
-                packer.pack_f32(*current_rel, 100000.0)?;
+                packer.pack_i32(current_rel.raw())?;
             }
             Self::SetOdometer(odometer) => {
                 packer.pack_u8(CommandId::SetOdometer as u8)?;
@@ -367,6 +367,75 @@ impl<'a> Command<'a> {
         Ok(())
     }
 }
+
+macro_rules! scaled {
+    ($(#[$m:meta])* $name:ident($raw:ty), $scale:expr) => {
+        $(#[$m])*
+        #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+        #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+        pub struct $name($raw);
+
+        impl $name {
+            pub const SCALE: $raw = $scale;
+            pub const fn from_raw(raw: $raw) -> Self { Self(raw) }
+            pub const fn raw(self) -> $raw { self.0 }
+            pub fn from_f32(v: f32) -> Self { Self((v * $scale as f32) as $raw) }
+            pub fn to_f32(self) -> f32 { self.0 as f32 / $scale as f32 }
+        }
+    };
+}
+
+scaled!(
+    /// Duty cycle ratio for [`Command::SetDuty`]. Valid range is typically
+    /// -1.0 to 1.0.
+    Duty(i32), 100_000);
+scaled!(
+    /// Current in amperes for [`Command::SetCurrent`],
+    /// [`Command::SetCurrentBrake`] and [`Command::SetHandbrake`].
+    Current(i32), 1000);
+scaled!(
+    /// Current relative to the configured limits for
+    /// [`Command::SetCurrentRel`]. Valid range is -1.0 to 1.0.
+    CurrentRel(i32), 100_000);
+scaled!(
+    /// Motor position in degrees, used by [`Command::SetPos`] and reported in
+    /// telemetry.
+    Position(i32), 1_000_000);
+scaled!(
+    /// Temperature in degrees Celsius.
+    Temperature(i16), 10);
+
+scaled!(
+    /// Averaged current in amperes as reported in telemetry.
+    AvgCurrent(i32), 100);
+scaled!(
+    /// Duty cycle ratio as reported in telemetry. Coarser than the [`Duty`] used
+    /// by [`Command::SetDuty`].
+    DutyCycle(i16), 1000);
+scaled!(
+    /// Input voltage in volts.
+    Voltage(i16), 10);
+scaled!(
+    /// Averaged d/q-axis voltage in volts.
+    AvgVoltage(i32), 1000);
+scaled!(
+    /// Consumed or charged amp-hours.
+    AmpHours(i32), 10_000);
+scaled!(
+    /// Consumed or charged watt-hours.
+    WattHours(i32), 10_000);
+scaled!(
+    /// Estimated watt-hours left in the battery.
+    WattHoursLeft(i32), 1000);
+scaled!(
+    /// Speed in meters per second.
+    Speed(i32), 1000);
+scaled!(
+    /// Battery level as a ratio from 0.0 to 1.0.
+    BatteryLevel(i16), 1000);
+scaled!(
+    /// Distance in meters.
+    Distance(i32), 1000);
 
 /// Indicates specific error conditions or hardware failures.
 ///
@@ -619,29 +688,29 @@ impl FwInfo {
 #[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Values {
-    pub temp_mosfet: f32,
-    pub temp_motor: f32,
-    pub avg_current_motor: f32,
-    pub avg_current_input: f32,
-    pub avg_current_d: f32,
-    pub avg_current_q: f32,
-    pub duty_cycle: f32,
-    pub rpm: f32,
-    pub voltage_in: f32,
-    pub amp_hours: f32,
-    pub amp_hours_charged: f32,
-    pub watt_hours: f32,
-    pub watt_hours_charged: f32,
+    pub temp_mosfet: Temperature,
+    pub temp_motor: Temperature,
+    pub avg_current_motor: AvgCurrent,
+    pub avg_current_input: AvgCurrent,
+    pub avg_current_d: AvgCurrent,
+    pub avg_current_q: AvgCurrent,
+    pub duty_cycle: DutyCycle,
+    pub rpm: i32,
+    pub voltage_in: Voltage,
+    pub amp_hours: AmpHours,
+    pub amp_hours_charged: AmpHours,
+    pub watt_hours: WattHours,
+    pub watt_hours_charged: WattHours,
     pub tachometer: i32,
     pub tachometer_abs: i32,
     pub fault_code: FaultCode,
-    pub pid_pos: f32,
+    pub pid_pos: Position,
     pub controller_id: u8,
-    pub temp_mosfet1: f32,
-    pub temp_mosfet2: f32,
-    pub temp_mosfet3: f32,
-    pub avg_voltage_d: f32,
-    pub avg_voltage_q: f32,
+    pub temp_mosfet1: Temperature,
+    pub temp_mosfet2: Temperature,
+    pub temp_mosfet3: Temperature,
+    pub avg_voltage_d: AvgVoltage,
+    pub avg_voltage_q: AvgVoltage,
     pub status: u8,
 }
 
@@ -650,26 +719,26 @@ pub struct Values {
 #[derive(Debug, Copy, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SetupValues {
-    pub temp_mosfet: f32,
-    pub temp_motor: f32,
-    pub avg_current_motor: f32,
-    pub avg_current_input: f32,
-    pub duty_cycle: f32,
-    pub rpm: f32,
-    pub speed: f32,
-    pub voltage_in: f32,
-    pub battery_level: f32,
-    pub amp_hours: f32,
-    pub amp_hours_charged: f32,
-    pub watt_hours: f32,
-    pub watt_hours_charged: f32,
-    pub distance: f32,
-    pub distance_abs: f32,
-    pub pid_pos: f32,
+    pub temp_mosfet: Temperature,
+    pub temp_motor: Temperature,
+    pub avg_current_motor: AvgCurrent,
+    pub avg_current_input: AvgCurrent,
+    pub duty_cycle: DutyCycle,
+    pub rpm: i32,
+    pub speed: Speed,
+    pub voltage_in: Voltage,
+    pub battery_level: BatteryLevel,
+    pub amp_hours: AmpHours,
+    pub amp_hours_charged: AmpHours,
+    pub watt_hours: WattHours,
+    pub watt_hours_charged: WattHours,
+    pub distance: Distance,
+    pub distance_abs: Distance,
+    pub pid_pos: Position,
     pub fault_code: FaultCode,
     pub controller_id: u8,
     pub num_vescs: u8,
-    pub watt_hours_battery_left: f32,
+    pub watt_hours_battery_left: WattHoursLeft,
     pub odometer: u32,
     pub uptime_ms: u32,
 }
@@ -762,29 +831,29 @@ impl CommandReply {
 
     fn unpack_get_values(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
         let values = Values {
-            temp_mosfet: unpacker.unpack_f16(10.0)?,
-            temp_motor: unpacker.unpack_f16(10.0)?,
-            avg_current_motor: unpacker.unpack_f32(100.0)?,
-            avg_current_input: unpacker.unpack_f32(100.0)?,
-            avg_current_d: unpacker.unpack_f32(100.0)?,
-            avg_current_q: unpacker.unpack_f32(100.0)?,
-            duty_cycle: unpacker.unpack_f16(1000.0)?,
-            rpm: unpacker.unpack_f32(1.0)?,
-            voltage_in: unpacker.unpack_f16(10.0)?,
-            amp_hours: unpacker.unpack_f32(10000.0)?,
-            amp_hours_charged: unpacker.unpack_f32(10000.0)?,
-            watt_hours: unpacker.unpack_f32(10000.0)?,
-            watt_hours_charged: unpacker.unpack_f32(10000.0)?,
+            temp_mosfet: Temperature::from_raw(unpacker.unpack_i16()?),
+            temp_motor: Temperature::from_raw(unpacker.unpack_i16()?),
+            avg_current_motor: AvgCurrent::from_raw(unpacker.unpack_i32()?),
+            avg_current_input: AvgCurrent::from_raw(unpacker.unpack_i32()?),
+            avg_current_d: AvgCurrent::from_raw(unpacker.unpack_i32()?),
+            avg_current_q: AvgCurrent::from_raw(unpacker.unpack_i32()?),
+            duty_cycle: DutyCycle::from_raw(unpacker.unpack_i16()?),
+            rpm: unpacker.unpack_i32()?,
+            voltage_in: Voltage::from_raw(unpacker.unpack_i16()?),
+            amp_hours: AmpHours::from_raw(unpacker.unpack_i32()?),
+            amp_hours_charged: AmpHours::from_raw(unpacker.unpack_i32()?),
+            watt_hours: WattHours::from_raw(unpacker.unpack_i32()?),
+            watt_hours_charged: WattHours::from_raw(unpacker.unpack_i32()?),
             tachometer: unpacker.unpack_i32()?,
             tachometer_abs: unpacker.unpack_i32()?,
             fault_code: unpacker.unpack_u8()?.into(),
-            pid_pos: unpacker.unpack_f32(1000000.0)?,
+            pid_pos: Position::from_raw(unpacker.unpack_i32()?),
             controller_id: unpacker.unpack_u8()?,
-            temp_mosfet1: unpacker.unpack_f16(10.0)?,
-            temp_mosfet2: unpacker.unpack_f16(10.0)?,
-            temp_mosfet3: unpacker.unpack_f16(10.0)?,
-            avg_voltage_d: unpacker.unpack_f32(1000.0)?,
-            avg_voltage_q: unpacker.unpack_f32(1000.0)?,
+            temp_mosfet1: Temperature::from_raw(unpacker.unpack_i16()?),
+            temp_mosfet2: Temperature::from_raw(unpacker.unpack_i16()?),
+            temp_mosfet3: Temperature::from_raw(unpacker.unpack_i16()?),
+            avg_voltage_d: AvgVoltage::from_raw(unpacker.unpack_i32()?),
+            avg_voltage_q: AvgVoltage::from_raw(unpacker.unpack_i32()?),
             status: unpacker.unpack_u8()?,
         };
         Ok(CommandReply::GetValues(values))
@@ -795,43 +864,43 @@ impl CommandReply {
         let mask = ValuesMask::from_bits_retain(unpacker.unpack_u32()?);
 
         if mask.contains(ValuesMask::TEMP_MOSFET) {
-            values.temp_mosfet = unpacker.unpack_f16(10.0)?;
+            values.temp_mosfet = Temperature::from_raw(unpacker.unpack_i16()?);
         }
         if mask.contains(ValuesMask::TEMP_MOTOR) {
-            values.temp_motor = unpacker.unpack_f16(10.0)?;
+            values.temp_motor = Temperature::from_raw(unpacker.unpack_i16()?);
         }
         if mask.contains(ValuesMask::AVG_CURRENT_MOTOR) {
-            values.avg_current_motor = unpacker.unpack_f32(100.0)?;
+            values.avg_current_motor = AvgCurrent::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::AVG_CURRENT_INPUT) {
-            values.avg_current_input = unpacker.unpack_f32(100.0)?;
+            values.avg_current_input = AvgCurrent::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::AVG_CURRENT_D) {
-            values.avg_current_d = unpacker.unpack_f32(100.0)?;
+            values.avg_current_d = AvgCurrent::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::AVG_CURRENT_Q) {
-            values.avg_current_q = unpacker.unpack_f32(100.0)?;
+            values.avg_current_q = AvgCurrent::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::DUTY_CYCLE) {
-            values.duty_cycle = unpacker.unpack_f16(1000.0)?;
+            values.duty_cycle = DutyCycle::from_raw(unpacker.unpack_i16()?);
         }
         if mask.contains(ValuesMask::RPM) {
-            values.rpm = unpacker.unpack_f32(1.0)?;
+            values.rpm = unpacker.unpack_i32()?;
         }
         if mask.contains(ValuesMask::VOLTAGE_IN) {
-            values.voltage_in = unpacker.unpack_f16(10.0)?;
+            values.voltage_in = Voltage::from_raw(unpacker.unpack_i16()?);
         }
         if mask.contains(ValuesMask::AMP_HOURS) {
-            values.amp_hours = unpacker.unpack_f32(10000.0)?;
+            values.amp_hours = AmpHours::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::AMP_HOURS_CHARGED) {
-            values.amp_hours_charged = unpacker.unpack_f32(10000.0)?;
+            values.amp_hours_charged = AmpHours::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::WATT_HOURS) {
-            values.watt_hours = unpacker.unpack_f32(10000.0)?;
+            values.watt_hours = WattHours::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::WATT_HOURS_CHARGED) {
-            values.watt_hours_charged = unpacker.unpack_f32(10000.0)?;
+            values.watt_hours_charged = WattHours::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::TACHOMETER) {
             values.tachometer = unpacker.unpack_i32()?;
@@ -843,21 +912,21 @@ impl CommandReply {
             values.fault_code = unpacker.unpack_u8()?.into();
         }
         if mask.contains(ValuesMask::PID_POS) {
-            values.pid_pos = unpacker.unpack_f32(1000000.0)?;
+            values.pid_pos = Position::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::CONTROLLER_ID) {
             values.controller_id = unpacker.unpack_u8()?;
         }
         if mask.contains(ValuesMask::TEMP_MOSFET_ALL) {
-            values.temp_mosfet1 = unpacker.unpack_f16(10.0)?;
-            values.temp_mosfet2 = unpacker.unpack_f16(10.0)?;
-            values.temp_mosfet3 = unpacker.unpack_f16(10.0)?;
+            values.temp_mosfet1 = Temperature::from_raw(unpacker.unpack_i16()?);
+            values.temp_mosfet2 = Temperature::from_raw(unpacker.unpack_i16()?);
+            values.temp_mosfet3 = Temperature::from_raw(unpacker.unpack_i16()?);
         }
         if mask.contains(ValuesMask::AVG_VOLTAGE_D) {
-            values.avg_voltage_d = unpacker.unpack_f32(1000.0)?;
+            values.avg_voltage_d = AvgVoltage::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::AVG_VOLTAGE_Q) {
-            values.avg_voltage_q = unpacker.unpack_f32(1000.0)?;
+            values.avg_voltage_q = AvgVoltage::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesMask::STATUS) {
             values.status = unpacker.unpack_u8()?;
@@ -870,52 +939,52 @@ impl CommandReply {
         let mask = ValuesSetupMask::from_bits_retain(unpacker.unpack_u32()?);
 
         if mask.contains(ValuesSetupMask::TEMP_MOSFET) {
-            values.temp_mosfet = unpacker.unpack_f16(10.0)?;
+            values.temp_mosfet = Temperature::from_raw(unpacker.unpack_i16()?);
         }
         if mask.contains(ValuesSetupMask::TEMP_MOTOR) {
-            values.temp_motor = unpacker.unpack_f16(10.0)?;
+            values.temp_motor = Temperature::from_raw(unpacker.unpack_i16()?);
         }
         if mask.contains(ValuesSetupMask::AVG_CURRENT_MOTOR) {
-            values.avg_current_motor = unpacker.unpack_f32(100.0)?;
+            values.avg_current_motor = AvgCurrent::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::AVG_CURRENT_INPUT) {
-            values.avg_current_input = unpacker.unpack_f32(100.0)?;
+            values.avg_current_input = AvgCurrent::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::DUTY_CYCLE) {
-            values.duty_cycle = unpacker.unpack_f16(1000.0)?;
+            values.duty_cycle = DutyCycle::from_raw(unpacker.unpack_i16()?);
         }
         if mask.contains(ValuesSetupMask::RPM) {
-            values.rpm = unpacker.unpack_f32(1.0)?;
+            values.rpm = unpacker.unpack_i32()?;
         }
         if mask.contains(ValuesSetupMask::SPEED) {
-            values.speed = unpacker.unpack_f32(1000.0)?;
+            values.speed = Speed::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::VOLTAGE_IN) {
-            values.voltage_in = unpacker.unpack_f16(10.0)?;
+            values.voltage_in = Voltage::from_raw(unpacker.unpack_i16()?);
         }
         if mask.contains(ValuesSetupMask::BATTERY_LEVEL) {
-            values.battery_level = unpacker.unpack_f16(1000.0)?;
+            values.battery_level = BatteryLevel::from_raw(unpacker.unpack_i16()?);
         }
         if mask.contains(ValuesSetupMask::AMP_HOURS) {
-            values.amp_hours = unpacker.unpack_f32(10000.0)?;
+            values.amp_hours = AmpHours::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::AMP_HOURS_CHARGED) {
-            values.amp_hours_charged = unpacker.unpack_f32(10000.0)?;
+            values.amp_hours_charged = AmpHours::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::WATT_HOURS) {
-            values.watt_hours = unpacker.unpack_f32(10000.0)?;
+            values.watt_hours = WattHours::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::WATT_HOURS_CHARGED) {
-            values.watt_hours_charged = unpacker.unpack_f32(10000.0)?;
+            values.watt_hours_charged = WattHours::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::DISTANCE) {
-            values.distance = unpacker.unpack_f32(1000.0)?;
+            values.distance = Distance::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::DISTANCE_ABS) {
-            values.distance_abs = unpacker.unpack_f32(1000.0)?;
+            values.distance_abs = Distance::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::PID_POS) {
-            values.pid_pos = unpacker.unpack_f32(1000000.0)?;
+            values.pid_pos = Position::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::FAULT_CODE) {
             values.fault_code = unpacker.unpack_u8()?.into();
@@ -927,7 +996,7 @@ impl CommandReply {
             values.num_vescs = unpacker.unpack_u8()?;
         }
         if mask.contains(ValuesSetupMask::WATT_HOURS_BATTERY_LEFT) {
-            values.watt_hours_battery_left = unpacker.unpack_f32(1000.0)?;
+            values.watt_hours_battery_left = WattHoursLeft::from_raw(unpacker.unpack_i32()?);
         }
         if mask.contains(ValuesSetupMask::ODOMETER) {
             values.odometer = unpacker.unpack_u32()?;

@@ -1,6 +1,9 @@
 use googletest::prelude::*;
 
-use vesc::{self, Command, EncodeError, StatsMask, ValuesMask, ValuesSetupMask};
+use vesc::{
+    self, Command, Current, CurrentRel, Duty, EncodeError, Position, StatsMask, ValuesMask,
+    ValuesSetupMask,
+};
 
 #[test]
 fn encode_fw_version() {
@@ -30,19 +33,31 @@ fn encode_get_values() {
 fn encode_set_duty() {
     let mut buf = [0u8; 16];
 
-    let size = vesc::encode(Command::SetDuty(0.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetDuty(Duty::from_f32(0.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 5, 0, 0, 0, 0, 35, 87, 3]));
 
-    let size = vesc::encode(Command::SetDuty(0.1), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetDuty(Duty::from_f32(0.1)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 5, 0, 0, 39, 16, 174, 23, 3]));
 
-    let size = vesc::encode(Command::SetDuty(0.57123), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetDuty(Duty::from_f32(0.57123)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 5, 0, 0, 223, 35, 50, 79, 3]));
 
-    let size = vesc::encode(Command::SetDuty(-0.1), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetDuty(Duty::from_f32(-0.1)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 5, 255, 255, 216, 240, 212, 6, 3]));
 
-    let size = vesc::encode(Command::SetDuty(-0.57123), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetDuty(Duty::from_f32(-0.57123)), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 5, 255, 255, 32, 221, 187, 161, 3]));
+
+    let size = vesc::encode(Command::SetDuty(Duty::from_raw(10_000)), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 5, 0, 0, 39, 16, 174, 23, 3]));
+
+    let size = vesc::encode(Command::SetDuty(Duty::from_raw(57_123)), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 5, 0, 0, 223, 35, 50, 79, 3]));
+
+    let size = vesc::encode(Command::SetDuty(Duty::from_raw(-10_000)), &mut buf).unwrap();
+    assert_that!(buf[..size], eq([2, 5, 5, 255, 255, 216, 240, 212, 6, 3]));
+
+    let size = vesc::encode(Command::SetDuty(Duty::from_raw(-57_123)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 5, 255, 255, 32, 221, 187, 161, 3]));
 }
 
@@ -50,19 +65,19 @@ fn encode_set_duty() {
 fn encode_set_current() {
     let mut buf = [0u8; 16];
 
-    let size = vesc::encode(Command::SetCurrent(0.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrent(Current::from_f32(0.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 6, 0, 0, 0, 0, 205, 133, 3]));
 
-    let size = vesc::encode(Command::SetCurrent(1.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrent(Current::from_f32(1.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 6, 0, 0, 3, 232, 228, 240, 3]));
 
-    let size = vesc::encode(Command::SetCurrent(57.123), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrent(Current::from_f32(57.123)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 6, 0, 0, 223, 35, 220, 157, 3]));
 
-    let size = vesc::encode(Command::SetCurrent(-1.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrent(Current::from_f32(-1.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 6, 255, 255, 252, 24, 140, 208, 3]));
 
-    let size = vesc::encode(Command::SetCurrent(-57.123), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrent(Current::from_f32(-57.123)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 6, 255, 255, 32, 221, 85, 115, 3]));
 }
 
@@ -70,13 +85,13 @@ fn encode_set_current() {
 fn encode_set_current_rel() {
     let mut buf = [0u8; 16];
 
-    let size = vesc::encode(Command::SetCurrentRel(0.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrentRel(CurrentRel::from_f32(0.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 84, 0, 0, 0, 0, 156, 52, 3]));
 
-    let size = vesc::encode(Command::SetCurrentRel(1.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrentRel(CurrentRel::from_f32(1.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 84, 0, 1, 134, 160, 175, 208, 3]));
 
-    let size = vesc::encode(Command::SetCurrentRel(-1.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrentRel(CurrentRel::from_f32(-1.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 84, 255, 254, 121, 96, 241, 163, 3]));
 }
 
@@ -84,19 +99,27 @@ fn encode_set_current_rel() {
 fn encode_set_current_brake() {
     let mut buf = [0u8; 16];
 
-    let size = vesc::encode(Command::SetCurrentBrake(0.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrentBrake(Current::from_f32(0.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 7, 0, 0, 0, 0, 103, 212, 3]));
 
-    let size = vesc::encode(Command::SetCurrentBrake(1.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrentBrake(Current::from_f32(1.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 7, 0, 0, 3, 232, 78, 161, 3]));
 
-    let size = vesc::encode(Command::SetCurrentBrake(57.123), &mut buf).unwrap();
+    let size = vesc::encode(
+        Command::SetCurrentBrake(Current::from_f32(57.123)),
+        &mut buf,
+    )
+    .unwrap();
     assert_that!(buf[..size], eq([2, 5, 7, 0, 0, 223, 35, 118, 204, 3]));
 
-    let size = vesc::encode(Command::SetCurrentBrake(-1.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetCurrentBrake(Current::from_f32(-1.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 7, 255, 255, 252, 24, 38, 129, 3]));
 
-    let size = vesc::encode(Command::SetCurrentBrake(-57.123), &mut buf).unwrap();
+    let size = vesc::encode(
+        Command::SetCurrentBrake(Current::from_f32(-57.123)),
+        &mut buf,
+    )
+    .unwrap();
     assert_that!(buf[..size], eq([2, 5, 7, 255, 255, 32, 221, 255, 34, 3]));
 }
 
@@ -124,19 +147,19 @@ fn encode_set_rpm() {
 fn encode_set_pos() {
     let mut buf = [0u8; 16];
 
-    let size = vesc::encode(Command::SetPos(0.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetPos(Position::from_f32(0.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 9, 0, 0, 0, 0, 168, 124, 3]));
 
-    let size = vesc::encode(Command::SetPos(1.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetPos(Position::from_f32(1.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 9, 0, 15, 66, 64, 167, 39, 3]));
 
-    let size = vesc::encode(Command::SetPos(0.1234), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetPos(Position::from_f32(0.1234)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 9, 0, 1, 226, 8, 104, 148, 3]));
 
-    let size = vesc::encode(Command::SetPos(-1.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetPos(Position::from_f32(-1.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 9, 255, 240, 189, 192, 177, 144, 3]));
 
-    let size = vesc::encode(Command::SetPos(-0.1234), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetPos(Position::from_f32(-0.1234)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 9, 255, 254, 29, 248, 0, 180, 3]));
 }
 
@@ -144,19 +167,19 @@ fn encode_set_pos() {
 fn encode_set_handbrake() {
     let mut buf = [0u8; 16];
 
-    let size = vesc::encode(Command::SetHandbrake(0.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetHandbrake(Current::from_f32(0.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 10, 0, 0, 0, 0, 70, 174, 3]));
 
-    let size = vesc::encode(Command::SetHandbrake(1.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetHandbrake(Current::from_f32(1.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 10, 0, 0, 3, 232, 111, 219, 3]));
 
-    let size = vesc::encode(Command::SetHandbrake(5.2), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetHandbrake(Current::from_f32(5.2)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 10, 0, 0, 20, 80, 211, 236, 3]));
 
-    let size = vesc::encode(Command::SetHandbrake(-1.0), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetHandbrake(Current::from_f32(-1.0)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 10, 255, 255, 252, 24, 7, 251, 3]));
 
-    let size = vesc::encode(Command::SetHandbrake(-5.2), &mut buf).unwrap();
+    let size = vesc::encode(Command::SetHandbrake(Current::from_f32(-5.2)), &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 5, 10, 255, 255, 235, 176, 169, 253, 3]));
 }
 
@@ -184,7 +207,7 @@ fn encode_forward_can() {
     let size = vesc::encode(command, &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 7, 34, 1, 8, 0, 0, 4, 210, 110, 99, 3]));
 
-    let command = Command::ForwardCan(7, &Command::SetCurrent(57.123));
+    let command = Command::ForwardCan(7, &Command::SetCurrent(Current::from_f32(57.123)));
     let size = vesc::encode(command, &mut buf).unwrap();
     assert_that!(buf[..size], eq([2, 7, 34, 7, 6, 0, 0, 223, 35, 26, 201, 3]));
 }
