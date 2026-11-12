@@ -1,5 +1,8 @@
 use googletest::prelude::*;
-use vesc::{CommandReply, Decoder, FaultCode, Values};
+use vesc::{
+    AmpHours, AvgCurrent, AvgVoltage, CommandReply, Decoder, DutyCycle, FaultCode, Position,
+    Temperature, Values, Voltage, WattHours,
+};
 
 #[test]
 fn decoder_decodes_single_packet() {
@@ -12,9 +15,9 @@ fn decoder_decodes_single_packet() {
     decoder.feed(&input).unwrap();
 
     let expected = pat!(CommandReply::GetValuesSelective(pat!(Values {
-        avg_current_input: approx_eq(0.04),
-        rpm: approx_eq(989.0),
-        voltage_in: approx_eq(37.5),
+        avg_current_input: eq(AvgCurrent::from_raw(4)),
+        rpm: eq(989),
+        voltage_in: eq(Voltage::from_raw(375)),
         tachometer: eq(-21973),
         fault_code: eq(FaultCode::None),
         controller_id: eq(20),
@@ -38,29 +41,29 @@ fn decoder_decodes_packet_fed_in_chunks() {
     }
 
     let expected = pat!(CommandReply::GetValues(pat!(Values {
-        temp_mosfet: approx_eq(27.6),
-        temp_motor: approx_eq(0.0),
-        avg_current_motor: approx_eq(0.37),
-        avg_current_input: approx_eq(0.03),
-        avg_current_d: approx_eq(0.0),
-        avg_current_q: approx_eq(0.32),
-        duty_cycle: approx_eq(0.11),
-        rpm: approx_eq(1019.0),
-        voltage_in: approx_eq(38.1),
-        amp_hours: approx_eq(0.0017),
-        amp_hours_charged: approx_eq(0.0),
-        watt_hours: approx_eq(0.0649),
-        watt_hours_charged: approx_eq(0.0),
+        temp_mosfet: eq(Temperature::from_raw(276)),
+        temp_motor: eq(Temperature::from_raw(0)),
+        avg_current_motor: eq(AvgCurrent::from_raw(37)),
+        avg_current_input: eq(AvgCurrent::from_raw(3)),
+        avg_current_d: eq(AvgCurrent::from_raw(0)),
+        avg_current_q: eq(AvgCurrent::from_raw(32)),
+        duty_cycle: eq(DutyCycle::from_raw(110)),
+        rpm: eq(1019),
+        voltage_in: eq(Voltage::from_raw(381)),
+        amp_hours: eq(AmpHours::from_raw(17)),
+        amp_hours_charged: eq(AmpHours::from_raw(0)),
+        watt_hours: eq(WattHours::from_raw(649)),
+        watt_hours_charged: eq(WattHours::from_raw(0)),
         tachometer: eq(-37045),
         tachometer_abs: eq(171975),
         fault_code: eq(FaultCode::None),
-        pid_pos: approx_eq(74.08746),
+        pid_pos: eq(Position::from_raw(74087464)),
         controller_id: eq(1),
-        temp_mosfet1: approx_eq(27.7),
-        temp_mosfet2: approx_eq(-94.8),
-        temp_mosfet3: approx_eq(-101.1),
-        avg_voltage_d: approx_eq(0.229),
-        avg_voltage_q: approx_eq(2.262),
+        temp_mosfet1: eq(Temperature::from_raw(277)),
+        temp_mosfet2: eq(Temperature::from_raw(-948)),
+        temp_mosfet3: eq(Temperature::from_raw(-1011)),
+        avg_voltage_d: eq(AvgVoltage::from_raw(229)),
+        avg_voltage_q: eq(AvgVoltage::from_raw(2262)),
         status: eq(0),
     })));
     assert_that!(decoder.next(), some(expected));
@@ -84,29 +87,29 @@ fn decoder_returns_none_until_packet_is_complete() {
     }
 
     let expected = pat!(CommandReply::GetValues(pat!(Values {
-        temp_mosfet: approx_eq(27.6),
-        temp_motor: approx_eq(0.0),
-        avg_current_motor: approx_eq(0.37),
-        avg_current_input: approx_eq(0.03),
-        avg_current_d: approx_eq(0.0),
-        avg_current_q: approx_eq(0.32),
-        duty_cycle: approx_eq(0.11),
-        rpm: approx_eq(1019.0),
-        voltage_in: approx_eq(38.1),
-        amp_hours: approx_eq(0.0017),
-        amp_hours_charged: approx_eq(0.0),
-        watt_hours: approx_eq(0.0649),
-        watt_hours_charged: approx_eq(0.0),
+        temp_mosfet: eq(Temperature::from_raw(276)),
+        temp_motor: eq(Temperature::from_raw(0)),
+        avg_current_motor: eq(AvgCurrent::from_raw(37)),
+        avg_current_input: eq(AvgCurrent::from_raw(3)),
+        avg_current_d: eq(AvgCurrent::from_raw(0)),
+        avg_current_q: eq(AvgCurrent::from_raw(32)),
+        duty_cycle: eq(DutyCycle::from_raw(110)),
+        rpm: eq(1019),
+        voltage_in: eq(Voltage::from_raw(381)),
+        amp_hours: eq(AmpHours::from_raw(17)),
+        amp_hours_charged: eq(AmpHours::from_raw(0)),
+        watt_hours: eq(WattHours::from_raw(649)),
+        watt_hours_charged: eq(WattHours::from_raw(0)),
         tachometer: eq(-37045),
         tachometer_abs: eq(171975),
         fault_code: eq(FaultCode::None),
-        pid_pos: approx_eq(74.08746),
+        pid_pos: eq(Position::from_raw(74087464)),
         controller_id: eq(1),
-        temp_mosfet1: approx_eq(27.7),
-        temp_mosfet2: approx_eq(-94.8),
-        temp_mosfet3: approx_eq(-101.1),
-        avg_voltage_d: approx_eq(0.229),
-        avg_voltage_q: approx_eq(2.262),
+        temp_mosfet1: eq(Temperature::from_raw(277)),
+        temp_mosfet2: eq(Temperature::from_raw(-948)),
+        temp_mosfet3: eq(Temperature::from_raw(-1011)),
+        avg_voltage_d: eq(AvgVoltage::from_raw(229)),
+        avg_voltage_q: eq(AvgVoltage::from_raw(2262)),
         status: eq(0),
     })));
     assert_that!(decoder.next(), some(expected));
@@ -123,9 +126,9 @@ fn decoder_decodes_two_packets_from_single_feed() {
     decoder.feed(&input).unwrap();
 
     let expected = pat!(CommandReply::GetValuesSelective(pat!(Values {
-        avg_current_input: approx_eq(0.0),
-        rpm: approx_eq(0.0),
-        voltage_in: approx_eq(38.4),
+        avg_current_input: eq(AvgCurrent::from_raw(0)),
+        rpm: eq(0),
+        voltage_in: eq(Voltage::from_raw(384)),
         tachometer: eq(-25018),
         fault_code: eq(FaultCode::None),
         controller_id: eq(1),
@@ -134,9 +137,9 @@ fn decoder_decodes_two_packets_from_single_feed() {
     assert_that!(decoder.next(), some(expected));
 
     let expected = pat!(CommandReply::GetValuesSelective(pat!(Values {
-        avg_current_input: approx_eq(0.04),
-        rpm: approx_eq(989.0),
-        voltage_in: approx_eq(37.5),
+        avg_current_input: eq(AvgCurrent::from_raw(4)),
+        rpm: eq(989),
+        voltage_in: eq(Voltage::from_raw(375)),
         tachometer: eq(-21973),
         fault_code: eq(FaultCode::None),
         controller_id: eq(20),
@@ -161,9 +164,9 @@ fn decoder_decodes_two_packets_from_separate_feeds() {
     decoder.feed(&input_two).unwrap();
 
     let expected = pat!(CommandReply::GetValuesSelective(pat!(Values {
-        avg_current_input: approx_eq(0.0),
-        rpm: approx_eq(0.0),
-        voltage_in: approx_eq(38.4),
+        avg_current_input: eq(AvgCurrent::from_raw(0)),
+        rpm: eq(0),
+        voltage_in: eq(Voltage::from_raw(384)),
         tachometer: eq(-25018),
         fault_code: eq(FaultCode::None),
         controller_id: eq(1),
@@ -172,9 +175,9 @@ fn decoder_decodes_two_packets_from_separate_feeds() {
     assert_that!(decoder.next(), some(expected));
 
     let expected = pat!(CommandReply::GetValuesSelective(pat!(Values {
-        avg_current_input: approx_eq(0.04),
-        rpm: approx_eq(989.0),
-        voltage_in: approx_eq(37.5),
+        avg_current_input: eq(AvgCurrent::from_raw(4)),
+        rpm: eq(989),
+        voltage_in: eq(Voltage::from_raw(375)),
         tachometer: eq(-21973),
         fault_code: eq(FaultCode::None),
         controller_id: eq(20),
@@ -227,9 +230,9 @@ fn decoder_skips_junk_bytes_between_packets() {
     decoder.feed(&input).unwrap();
 
     let expected = pat!(CommandReply::GetValuesSelective(pat!(Values {
-        avg_current_input: approx_eq(0.0),
-        rpm: approx_eq(0.0),
-        voltage_in: approx_eq(38.4),
+        avg_current_input: eq(AvgCurrent::from_raw(0)),
+        rpm: eq(0),
+        voltage_in: eq(Voltage::from_raw(384)),
         tachometer: eq(-25018),
         fault_code: eq(FaultCode::None),
         controller_id: eq(1),
@@ -238,9 +241,9 @@ fn decoder_skips_junk_bytes_between_packets() {
     assert_that!(decoder.next(), some(expected));
 
     let expected = pat!(CommandReply::GetValuesSelective(pat!(Values {
-        avg_current_input: approx_eq(0.04),
-        rpm: approx_eq(989.0),
-        voltage_in: approx_eq(37.5),
+        avg_current_input: eq(AvgCurrent::from_raw(4)),
+        rpm: eq(989),
+        voltage_in: eq(Voltage::from_raw(375)),
         tachometer: eq(-21973),
         fault_code: eq(FaultCode::None),
         controller_id: eq(20),
@@ -260,9 +263,9 @@ fn decoder_recovers_from_false_start_byte() {
     decoder.feed(&input).unwrap();
 
     let expected = pat!(CommandReply::GetValuesSelective(pat!(Values {
-        avg_current_input: approx_eq(0.04),
-        rpm: approx_eq(989.0),
-        voltage_in: approx_eq(37.5),
+        avg_current_input: eq(AvgCurrent::from_raw(4)),
+        rpm: eq(989),
+        voltage_in: eq(Voltage::from_raw(375)),
         tachometer: eq(-21973),
         fault_code: eq(FaultCode::None),
         controller_id: eq(20),
@@ -306,35 +309,35 @@ fn decoder_iterator_collects_all_valid_packets() {
 
     let expected = elements_are![
         pat!(&CommandReply::GetValues(pat!(Values {
-            temp_mosfet: approx_eq(27.6),
-            temp_motor: approx_eq(0.0),
-            avg_current_motor: approx_eq(0.37),
-            avg_current_input: approx_eq(0.03),
-            avg_current_d: approx_eq(0.0),
-            avg_current_q: approx_eq(0.32),
-            duty_cycle: approx_eq(0.11),
-            rpm: approx_eq(1019.0),
-            voltage_in: approx_eq(38.1),
-            amp_hours: approx_eq(0.0017),
-            amp_hours_charged: approx_eq(0.0),
-            watt_hours: approx_eq(0.0649),
-            watt_hours_charged: approx_eq(0.0),
+            temp_mosfet: eq(Temperature::from_raw(276)),
+            temp_motor: eq(Temperature::from_raw(0)),
+            avg_current_motor: eq(AvgCurrent::from_raw(37)),
+            avg_current_input: eq(AvgCurrent::from_raw(3)),
+            avg_current_d: eq(AvgCurrent::from_raw(0)),
+            avg_current_q: eq(AvgCurrent::from_raw(32)),
+            duty_cycle: eq(DutyCycle::from_raw(110)),
+            rpm: eq(1019),
+            voltage_in: eq(Voltage::from_raw(381)),
+            amp_hours: eq(AmpHours::from_raw(17)),
+            amp_hours_charged: eq(AmpHours::from_raw(0)),
+            watt_hours: eq(WattHours::from_raw(649)),
+            watt_hours_charged: eq(WattHours::from_raw(0)),
             tachometer: eq(-37045),
             tachometer_abs: eq(171975),
             fault_code: eq(FaultCode::None),
-            pid_pos: approx_eq(74.08746),
+            pid_pos: eq(Position::from_raw(74087464)),
             controller_id: eq(1),
-            temp_mosfet1: approx_eq(27.7),
-            temp_mosfet2: approx_eq(-94.8),
-            temp_mosfet3: approx_eq(-101.1),
-            avg_voltage_d: approx_eq(0.229),
-            avg_voltage_q: approx_eq(2.262),
+            temp_mosfet1: eq(Temperature::from_raw(277)),
+            temp_mosfet2: eq(Temperature::from_raw(-948)),
+            temp_mosfet3: eq(Temperature::from_raw(-1011)),
+            avg_voltage_d: eq(AvgVoltage::from_raw(229)),
+            avg_voltage_q: eq(AvgVoltage::from_raw(2262)),
             status: eq(0),
         }))),
         pat!(&CommandReply::GetValuesSelective(pat!(Values {
-            avg_current_input: approx_eq(0.1),
-            rpm: approx_eq(-2347.0),
-            voltage_in: approx_eq(37.4),
+            avg_current_input: eq(AvgCurrent::from_raw(10)),
+            rpm: eq(-2347),
+            voltage_in: eq(Voltage::from_raw(374)),
             tachometer: eq(-18982),
             fault_code: eq(FaultCode::None),
             controller_id: eq(20),
