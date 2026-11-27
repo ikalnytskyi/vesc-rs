@@ -386,7 +386,7 @@ impl<'a> McConfView<'a> {
             foc_fw_q_current_factor: self
                 .at([314, 318, 319, 323][self.layout])?
                 .unpack_f16(10000.0)?,
-            foc_speed_soure: self.at([316, 320, 323, 327][self.layout])?.unpack_u8()?,
+            foc_speed_source: self.at([316, 320, 323, 327][self.layout])?.unpack_u8()?,
             foc_short_ls_on_zero_duty: self.at([317, 321, 324, 328][self.layout])?.unpack_u8()?
                 != 0,
             m_hall_extra_samples: self.at([439, 445, 450, 454][self.layout])?.unpack_u8()? as i8,
@@ -850,7 +850,8 @@ pub struct Foc {
     /// Q Axis Current Factor. Fraction of one.
     pub foc_fw_q_current_factor: f32,
     /// Speed Tracker Position Source. Raw enum code from the matching VESC Tool schema.
-    pub foc_speed_soure: u8,
+    /// The firmware schema omits the letter `c` in `source` for this field.
+    pub foc_speed_source: u8,
     /// Short Low-Side FETs on Zero Duty.
     pub foc_short_ls_on_zero_duty: bool,
     /// Hall Sensor Extra Samples.

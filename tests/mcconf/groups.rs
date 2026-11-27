@@ -150,7 +150,7 @@ fn all_groups_6_05() {
     assert_eq!(settings.foc_fw_duty_start, 0.9_f32);
     assert_eq!(settings.foc_fw_ramp_time, 0.125_f32);
     assert_eq!(settings.foc_fw_q_current_factor, 0.1269_f32);
-    assert_eq!(settings.foc_speed_soure, 0);
+    assert_eq!(settings.foc_speed_source, 0);
     assert!(settings.foc_short_ls_on_zero_duty);
     assert_eq!(settings.m_hall_extra_samples, -77);
     assert_eq!(settings.foc_hfi_amb_mode, None);
@@ -365,7 +365,7 @@ fn all_groups_6_06() {
     assert_eq!(settings.foc_fw_duty_start, 0.9_f32);
     assert_eq!(settings.foc_fw_ramp_time, 0.128_f32);
     assert_eq!(settings.foc_fw_q_current_factor, 0.1298_f32);
-    assert_eq!(settings.foc_speed_soure, 1);
+    assert_eq!(settings.foc_speed_source, 1);
     assert!(!settings.foc_short_ls_on_zero_duty);
     assert_eq!(settings.m_hall_extra_samples, -81);
     assert_eq!(settings.foc_hfi_amb_mode, Some(0));
@@ -580,7 +580,7 @@ fn all_groups_7_00() {
     assert_eq!(settings.foc_fw_duty_start, 0.9_f32);
     assert_eq!(settings.foc_fw_ramp_time, 0.128_f32);
     assert_eq!(settings.foc_fw_q_current_factor, 0.1298_f32);
-    assert_eq!(settings.foc_speed_soure, 0);
+    assert_eq!(settings.foc_speed_source, 0);
     assert!(settings.foc_short_ls_on_zero_duty);
     assert_eq!(settings.m_hall_extra_samples, -83);
     assert_eq!(settings.foc_hfi_amb_mode, Some(2));
@@ -795,7 +795,7 @@ fn all_groups_8_00() {
     assert_eq!(settings.foc_fw_duty_start, 0.9_f32);
     assert_eq!(settings.foc_fw_ramp_time, 0.131_f32);
     assert_eq!(settings.foc_fw_q_current_factor, 0.1328_f32);
-    assert_eq!(settings.foc_speed_soure, 1);
+    assert_eq!(settings.foc_speed_source, 1);
     assert!(!settings.foc_short_ls_on_zero_duty);
     assert_eq!(settings.m_hall_extra_samples, -86);
     assert_eq!(settings.foc_hfi_amb_mode, Some(2));
