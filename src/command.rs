@@ -223,10 +223,6 @@ pub enum Command<'a> {
     /// Requests the complete set of telemetry data from the VESC.
     GetValues,
 
-    /// Reads motor configuration using the reply configuration signature.
-    /// Does not write configuration or run motor detection.
-    GetMcConf,
-
     /// Sets the motor duty cycle ratio. Valid range is typically -1.0 to 1.0.
     SetDuty(f32),
 
@@ -247,6 +243,10 @@ pub enum Command<'a> {
 
     /// Sets the handbrake current in amperes.
     SetHandbrake(f32),
+
+    /// Reads motor configuration using the reply configuration signature.
+    /// Does not write configuration or run motor detection.
+    GetMcConf,
 
     /// Reboots the VESC controller.
     Reboot,
@@ -302,9 +302,6 @@ impl<'a> Command<'a> {
             Self::GetValues => {
                 packer.pack_u8(CommandId::GetValues as u8)?;
             }
-            Self::GetMcConf => {
-                packer.pack_u8(CommandId::GetMcConf as u8)?;
-            }
             Self::SetDuty(duty) => {
                 packer.pack_u8(CommandId::SetDuty as u8)?;
                 packer.pack_f32(*duty, 100000.0)?;
@@ -328,6 +325,9 @@ impl<'a> Command<'a> {
             Self::SetHandbrake(current) => {
                 packer.pack_u8(CommandId::SetHandbrake as u8)?;
                 packer.pack_f32(*current, 1000.0)?;
+            }
+            Self::GetMcConf => {
+                packer.pack_u8(CommandId::GetMcConf as u8)?;
             }
             Self::Reboot => {
                 packer.pack_u8(CommandId::Reboot as u8)?;
@@ -714,12 +714,12 @@ pub enum CommandReply {
     /// Firmware version in response to [`Command::FwVersion`].
     FwVersion(FwVersion),
 
-    /// Selected motor configuration fields in response to [`Command::GetMcConf`].
-    GetMcConf(crate::McConf),
-
     /// Complete telemetry data in response to [`Command::GetValues`]. Contains
     /// all available sensor readings and status information.
     GetValues(Values),
+
+    /// Selected motor configuration fields in response to [`Command::GetMcConf`].
+    GetMcConf(crate::McConf),
 
     /// Selective telemetry data in response to [`Command::GetValuesSelective`].
     /// Contains only the data fields that were requested via the
@@ -744,10 +744,10 @@ impl CommandReply {
     fn unpack_from(unpacker: &mut Unpacker, payload_len: usize) -> Result<Self, DecodeError> {
         Ok(match unpacker.unpack_u8()?.try_into()? {
             CommandId::FwVersion => Self::unpack_fw_version(unpacker)?,
+            CommandId::GetValues => Self::unpack_get_values(unpacker)?,
             CommandId::GetMcConf => {
                 Self::GetMcConf(crate::McConf::unpack_from(unpacker, payload_len)?)
             }
-            CommandId::GetValues => Self::unpack_get_values(unpacker)?,
             CommandId::GetValuesSelective => Self::unpack_get_values_selective(unpacker)?,
             CommandId::GetValuesSetupSelective => {
                 Self::unpack_get_values_setup_selective(unpacker)?

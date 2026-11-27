@@ -34,7 +34,7 @@ fn decoder_decodes_packet_fed_in_chunks() {
     let mut decoder = Decoder::default();
 
     for chunk in input.chunks(5) {
-        decoder.feed(&chunk).unwrap();
+        decoder.feed(chunk).unwrap();
     }
 
     let expected = pat!(CommandReply::GetValues(pat!(Values {
@@ -77,7 +77,7 @@ fn decoder_returns_none_until_packet_is_complete() {
     let mut decoder = Decoder::default();
 
     for (i, chunk) in input.chunks(input.len() / 5).enumerate() {
-        decoder.feed(&chunk).unwrap();
+        decoder.feed(chunk).unwrap();
         if i < 5 {
             assert_that!(decoder.next(), none());
         }
