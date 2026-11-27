@@ -128,7 +128,7 @@ impl<'a> Unpacker<'a> {
     }
 
     #[inline]
-    fn consume(&mut self, amount: usize) -> Result<&[u8], DecodeError> {
+    pub(crate) fn consume(&mut self, amount: usize) -> Result<&[u8], DecodeError> {
         if self.pos + amount > self.buf.len() {
             return Err(DecodeError::IncompleteData);
         }

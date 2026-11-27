@@ -463,7 +463,7 @@ fn decode_wrong_payload_len_gt_payload() {
         2, 23, 50, 0, 2, 161, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 128, 255, 255, 158, 70, 0, 1,
         63, 148, 3,
     ];
-    input[1] = input[1] + 1;
+    input[1] += 1;
 
     let expected = &DecodeError::InvalidFrame;
     assert_that!(vesc::decode(&input), err(eq(expected)));
@@ -475,7 +475,7 @@ fn decode_wrong_payload_len_lt_payload() {
         2, 23, 50, 0, 2, 161, 138, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 128, 255, 255, 158, 70, 0, 1,
         63, 148, 3,
     ];
-    input[1] = input[1] - 1;
+    input[1] -= 1;
 
     let expected = &DecodeError::InvalidFrame;
     assert_that!(vesc::decode(&input), err(eq(expected)));

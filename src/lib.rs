@@ -51,6 +51,7 @@
 
 mod command;
 mod decoder;
+pub mod mcconf;
 mod packer;
 
 pub use command::{
@@ -76,3 +77,4 @@ pub use command::{
     encode,
 };
 pub use decoder::Decoder;
+pub use mcconf::{McConf, McConfView};

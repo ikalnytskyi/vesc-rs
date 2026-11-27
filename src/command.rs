@@ -6,6 +6,7 @@ use super::packer::{Packer, Unpacker};
 const CRC16: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_XMODEM);
 const FRAME_END: u8 = 3;
 const FRAME_START_SHORT: u8 = 2;
+const FRAME_START_LONG: u8 = 3;
 
 // The VESC firmware caps the FwVersion payload at 65 bytes.
 // This decoder allows each name buffer to hold up to 39 bytes (including NUL).
@@ -36,6 +37,9 @@ pub enum DecodeError {
     #[error("unrecognized or unsupported packet: {id}")]
     UnknownPacket { id: u8 },
 
+    #[error("unsupported motor configuration signature: 0x{signature:X}")]
+    UnsupportedMcConf { signature: u32 },
+
     #[error("the frame structure is frame")]
     InvalidFrame,
 }
@@ -50,6 +54,7 @@ enum CommandId {
     SetRpm = 8,
     SetPos = 9,
     SetHandbrake = 10,
+    GetMcConf = 14,
     Reboot = 29,
     Alive = 30,
     ForwardCan = 34,
@@ -77,6 +82,7 @@ impl TryFrom<u8> for CommandId {
             id if id == CommandId::SetRpm as u8 => Ok(CommandId::SetRpm),
             id if id == CommandId::SetPos as u8 => Ok(CommandId::SetPos),
             id if id == CommandId::SetHandbrake as u8 => Ok(CommandId::SetHandbrake),
+            id if id == CommandId::GetMcConf as u8 => Ok(CommandId::GetMcConf),
             id if id == CommandId::Reboot as u8 => Ok(CommandId::Reboot),
             id if id == CommandId::Alive as u8 => Ok(CommandId::Alive),
             id if id == CommandId::ForwardCan as u8 => Ok(CommandId::ForwardCan),
@@ -238,6 +244,10 @@ pub enum Command<'a> {
     /// Sets the handbrake current in amperes.
     SetHandbrake(f32),
 
+    /// Reads motor configuration using the reply configuration signature.
+    /// Does not write configuration or run motor detection.
+    GetMcConf,
+
     /// Reboots the VESC controller.
     Reboot,
 
@@ -315,6 +325,9 @@ impl<'a> Command<'a> {
             Self::SetHandbrake(current) => {
                 packer.pack_u8(CommandId::SetHandbrake as u8)?;
                 packer.pack_f32(*current, 1000.0)?;
+            }
+            Self::GetMcConf => {
+                packer.pack_u8(CommandId::GetMcConf as u8)?;
             }
             Self::Reboot => {
                 packer.pack_u8(CommandId::Reboot as u8)?;
@@ -705,6 +718,10 @@ pub enum CommandReply {
     /// all available sensor readings and status information.
     GetValues(Values),
 
+    /// Compact motor configuration summary in response to [`Command::GetMcConf`].
+    /// Use [`crate::McConfView`] for all settings grouped like VESC Tool.
+    GetMcConf(crate::McConf),
+
     /// Selective telemetry data in response to [`Command::GetValuesSelective`].
     /// Contains only the data fields that were requested via the
     /// [`ValuesMask`]. Non-requested fields will have default values.
@@ -725,10 +742,13 @@ pub enum CommandReply {
 }
 
 impl CommandReply {
-    fn unpack_from(unpacker: &mut Unpacker) -> Result<Self, DecodeError> {
+    fn unpack_from(unpacker: &mut Unpacker, payload_len: usize) -> Result<Self, DecodeError> {
         Ok(match unpacker.unpack_u8()?.try_into()? {
             CommandId::FwVersion => Self::unpack_fw_version(unpacker)?,
             CommandId::GetValues => Self::unpack_get_values(unpacker)?,
+            CommandId::GetMcConf => {
+                Self::GetMcConf(crate::McConf::unpack_from(unpacker, payload_len)?)
+            }
             CommandId::GetValuesSelective => Self::unpack_get_values_selective(unpacker)?,
             CommandId::GetValuesSetupSelective => {
                 Self::unpack_get_values_setup_selective(unpacker)?
@@ -1044,21 +1064,22 @@ pub fn encode(command: Command, buf: &mut [u8]) -> Result<usize, EncodeError> {
 pub fn decode(buf: &[u8]) -> Result<(usize, CommandReply), DecodeError> {
     let mut unpacker = Unpacker::new(buf);
 
-    let frame_start = unpacker.unpack_u8()?;
-    if frame_start != FRAME_START_SHORT {
-        return Err(DecodeError::InvalidFrame);
-    }
-    let payload_len = unpacker.unpack_u8()? as usize;
-    let reply = CommandReply::unpack_from(&mut unpacker)?;
+    let payload_len = match unpacker.unpack_u8()? {
+        FRAME_START_SHORT => unpacker.unpack_u8()? as usize,
+        FRAME_START_LONG => unpacker.unpack_u16()? as usize,
+        _ => return Err(DecodeError::InvalidFrame),
+    };
+    let header_len = unpacker.pos;
+    let reply = CommandReply::unpack_from(&mut unpacker, payload_len)?;
 
     // Knowing the payload length upfront isn't strictly necessary here, but it
     // provides an extra validation step: we can confirm that the frame is
     // well-formed and report an error if the declared length doesn't match the
     // actual payload length.
-    if payload_len != unpacker.pos - (frame_start as usize) {
+    if payload_len != unpacker.pos - header_len {
         return Err(DecodeError::InvalidFrame);
     }
-    let payload = &unpacker.buf[(frame_start as usize)..unpacker.pos];
+    let payload = &unpacker.buf[header_len..unpacker.pos];
     let checksum_expected = unpacker.unpack_u16()?;
     if unpacker.unpack_u8()? != FRAME_END {
         return Err(DecodeError::InvalidFrame);

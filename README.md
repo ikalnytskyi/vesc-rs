@@ -27,6 +27,7 @@ application that needs to communicate with VESC motor controllers.
 | `8`        | `SetRpm`                          | ✅     |
 | `9`        | `SetPos`                          | ✅     |
 | `10`       | `SetHandbrake`                    | ✅     |
+| `14`       | `GetMcConf`                       | ✅     |
 | `29`       | `Reboot`                          | ✅     |
 | `30`       | `Alive`                           | ✅     |
 | `34`       | `ForwardCan`                      | ✅     |
@@ -49,6 +50,7 @@ application that needs to communicate with VESC motor controllers.
 |------------|-----------------------------------|--------|
 | `0`        | `FwVersion`                       | ✅     |
 | `4`        | `GetValues`                       | ✅     |
+| `14`       | `GetMcConf`                       | ✅     |
 | `50`       | `GetValuesSelective`              | ✅     |
 | `128`      | `GetStats`                        | ✅     |
 | `129`      | `ResetStats`                      | ✅     |
@@ -83,6 +85,23 @@ loop {
         // process `reply`
     }
 }
+```
+
+## Reading motor configuration
+
+`GetMcConf` reads motor settings. `McConfView` provides typed VESC Tool groups.
+Unsupported configuration layouts return `DecodeError::UnsupportedMcConf`.
+
+```rust
+let mut buf = [0u8; 16];
+let size = vesc::encode(Command::GetMcConf, &mut buf).unwrap();
+tx.write_all(&buf[..size]).unwrap();
+```
+
+```rust
+let (_, config) = McConfView::decode(&frame)?;
+let general = config.general()?;
+let foc = config.foc()?;
 ```
 
 ## License
