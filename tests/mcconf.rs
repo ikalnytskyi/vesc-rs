@@ -116,3 +116,6 @@ fn default_stream_decoder_accepts_fragmented_configuration_and_next_reply() {
 fn mcconf_fits_inside_existing_reply_storage() {
     assert!(core::mem::size_of::<vesc::McConf>() <= core::mem::size_of::<vesc::Values>());
 }
+
+#[path = "mcconf/groups.rs"]
+mod groups;

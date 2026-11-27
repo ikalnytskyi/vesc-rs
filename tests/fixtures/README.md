@@ -5,12 +5,18 @@ Each includes its big-endian configuration signature, but no command
 ID, frame header or CRC. Field order, widths and scales come from the official
 [VESC Tool 6.05 schema](https://github.com/vedderb/vesc_tool/blob/master/res/config/6.05/parameters_mcconf.xml).
 
-The fixtures were serialized independently from that XML schema, not from the Rust
-decoder offsets. Enum, boolean and integer fields are 1; floating-point fields
-are 1.25 except: l_current_max=178.75, l_abs_current_max=268.125,
-l_max_duty=0.95, l_current_max_scale=0.8, foc_fw_current_max=100.5,
-foc_fw_duty_start=0.9. Fixed-point fields are truncated after scaling, as in the
-firmware. Hardware validation is still required.
+The fixtures were serialized independently from each official XML schema,
+not from the Rust decoder offsets. Zero-based serialized field index `i` sets
+floating-point values to `(i + 1) / 1024`, booleans to `i % 2`, enum values to
+`i % enum_count`, and integer/bitfield values to `i % 100 + 1` (negative for signed
+integers). Six overrides retain the report-related example values:
+l_current_max=178.75, l_abs_current_max=268.125, l_max_duty=0.95,
+l_current_max_scale=0.8, foc_fw_current_max=100.5, foc_fw_duty_start=0.9.
+Fixed-point fields are truncated after scaling, as in the firmware.
+
+`tests/mcconf/groups.rs` checks every transmitted setting in every supported
+layout, including signed values, arrays and fields absent in some layouts.
+These are synthetic fixtures; physical-controller verification remains pending.
 
 | Schema | Signature | Configuration bytes |
 | --- | --- | --- |

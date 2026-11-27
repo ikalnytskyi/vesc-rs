@@ -89,13 +89,19 @@ loop {
 
 ## Reading motor configuration
 
-`GetMcConf` reads motor current limits and field-weakening settings.
+`GetMcConf` reads motor settings. `McConfView` provides typed VESC Tool groups.
 Unsupported configuration layouts return `DecodeError::UnsupportedMcConf`.
 
 ```rust
 let mut buf = [0u8; 16];
 let size = vesc::encode(Command::GetMcConf, &mut buf).unwrap();
 tx.write_all(&buf[..size]).unwrap();
+```
+
+```rust
+let (_, config) = McConfView::decode(&frame)?;
+let general = config.general()?;
+let foc = config.foc()?;
 ```
 
 ## License

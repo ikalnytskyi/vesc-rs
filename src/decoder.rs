@@ -35,6 +35,23 @@ impl<const BUFLEN: usize> Decoder<BUFLEN> {
         }
     }
 
+    /// Decodes the next configuration reply without copying the receive buffer.
+    ///
+    /// Returns `None` while the frame is incomplete. A returned view borrows the
+    /// decoder; decode the desired groups before feeding more data. The frame
+    /// is consumed only on success. Other reply kinds return `InvalidFrame`
+    /// and can still be consumed with [`Iterator::next`].
+    pub fn next_mcconf(&mut self) -> Result<Option<crate::McConfView<'_>>, DecodeError> {
+        match crate::McConfView::decode(&self.buf[self.rpos..self.wpos]) {
+            Ok((consumed, view)) => {
+                self.rpos += consumed;
+                Ok(Some(view))
+            }
+            Err(DecodeError::IncompleteData) => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
     /// Feeds new data into the decoder's internal buffer.
     ///
     /// Returns the number of bytes consumed from the input. If less than the

@@ -1,8 +1,33 @@
+//! Motor configuration replies and typed groups.
+//!
+//! [`McConf`] is the compact current-limit summary returned by the ordinary
+//! streaming decoder. Use [`McConfView::decode`] on the retained received frame
+//! to access all transmitted settings without enlarging [`crate::CommandReply`].
+
+mod groups;
+pub use groups::{AdditionalInfo, Bldc, Dc, Foc, General, McConfView, PidControllers};
+
 use crate::{DecodeError, packer::Unpacker};
 
-/// Current and field-weakening settings read from a motor configuration.
+// Signature, configuration bytes, bytes between current scale and weakening.
+const LAYOUTS: [(u32, usize, usize); 4] = [
+    (1_065_524_471, 477, 223), // 6.05
+    (788_332_866, 483, 227),   // 6.06
+    (1_470_992_211, 488, 228), // 7.00
+    (471_314_414, 492, 232),   // 8.00
+];
+
+fn layout_for_signature(signature: u32) -> Result<usize, DecodeError> {
+    LAYOUTS
+        .iter()
+        .position(|layout| layout.0 == signature)
+        .ok_or(DecodeError::UnsupportedMcConf { signature })
+}
+
+/// Compact current and field-weakening summary from a motor configuration.
 ///
-/// Field names match the firmware. Other configuration fields are not exposed.
+/// Field names match the firmware. All settings are available through
+/// [`McConfView`], which decodes groups from a retained configuration frame.
 /// The reply signature selects a known layout; unknown signatures and incorrect
 /// lengths are rejected. Firmware version does not need to be supplied by the
 /// caller. Values are configured limits, not measurements or nameplate ratings.
@@ -32,16 +57,7 @@ impl McConf {
         payload_len: usize,
     ) -> Result<Self, DecodeError> {
         let signature = unpacker.unpack_u32()?;
-        // Official VESC Tool res/config/*/parameters_mcconf.xml layouts.
-        // Each tuple is (complete configuration length, bytes skipped between
-        // l_current_max_scale and foc_fw_current_max). The prefix is shared.
-        let (config_len, before_field_weakening) = match signature {
-            1_065_524_471 => (477, 223), // 6.05
-            788_332_866 => (483, 227),   // 6.06
-            1_470_992_211 => (488, 228), // 7.00
-            471_314_414 => (492, 232),   // 8.00
-            signature => return Err(DecodeError::UnsupportedMcConf { signature }),
-        };
+        let (_, config_len, before_field_weakening) = LAYOUTS[layout_for_signature(signature)?];
         // The command ID is also included in the frame payload length.
         if payload_len != config_len + 1 {
             return Err(DecodeError::InvalidFrame);

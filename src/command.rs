@@ -718,7 +718,8 @@ pub enum CommandReply {
     /// all available sensor readings and status information.
     GetValues(Values),
 
-    /// Selected motor configuration fields in response to [`Command::GetMcConf`].
+    /// Compact motor configuration summary in response to [`Command::GetMcConf`].
+    /// Use [`crate::McConfView`] for all settings grouped like VESC Tool.
     GetMcConf(crate::McConf),
 
     /// Selective telemetry data in response to [`Command::GetValuesSelective`].
